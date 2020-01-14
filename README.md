@@ -1,2 +1,2 @@
 # irixs-dev
-P01 IRIXS reduction routine
+P01 IRIXS reduction routine development
