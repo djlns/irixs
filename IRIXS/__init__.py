@@ -261,7 +261,8 @@ class irixs:
     def __init__(self, exp=None,
                  E0=None, y0=None, roix=[0,2048], roiy=[0,2048],
                  threshold=1010, cutoff=1800, detfac=935,
-                 analyser=None):
+                 analyser=None,
+                 datdir=None):
         '''
         exp -- experiment title / data filename prefix
         E0 -- elastic energy: use None to extract from .fio file
@@ -292,8 +293,13 @@ class irixs:
         self.analyser = quartz if analyser is None else analyser
         self.dspacing = calc_dspacing(self.analyser[0], self.analyser[1])
 
-        self.datdir = defs['datdir']
-        self.localdir = defs['savedir_raw']
+        if datdir:
+            self.datdir = datdir
+            self.localdir = False
+        else:
+            self.datdir = defs['datdir']
+            self.localdir = defs['savedir_raw']
+        
         if self.localdir:
             os.makedirs(self.localdir, exist_ok=True)
 
@@ -306,7 +312,7 @@ class irixs:
         os.makedirs(self.savedir_det, exist_ok=True)
         os.makedirs(self.savedir_fig, exist_ok=True)
 
-        self.corr_shift = False #distortion correction
+        self.corr_shift = False  # distortion correction
 
 
     def load(self, numors):
