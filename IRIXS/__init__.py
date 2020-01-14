@@ -72,7 +72,6 @@ def pix_to_E(energy, dspacing):
 
 
 def binning(x, y, n):
-    y = y / PHOTON_FACTOR
     e = np.sqrt(y)
     if isinstance(n,int): #strides
         xbin = int(len(x)/n)
@@ -81,9 +80,10 @@ def binning(x, y, n):
     yi,xi = np.histogram(x, bins=xbin, weights=y)
     ei,_ = np.histogram(x, bins=xbin, weights=e**2)
     count,_ = np.histogram(x, bins=xbin)
-    yi /= count
+    with np.errstate(divide='ignore', invalid='ignore'):
+        yi = yi / count
+        ei = np.sqrt(ei) / count
     xi = (xi[1:]+xi[:-1])/2
-    ei = np.sqrt(ei) / count
     return xi, yi, ei
 
 
@@ -188,7 +188,10 @@ def load_fio(run, exp, datdir):
         a['data'] = data
         a['auto'] = head[0]
         a['pnts'] = pnts
-        a['EF'] = a['data'][head[0]]
+        if head[0] == 'exp_dmy01':
+            a['EF'] = np.full(pnts,a['rixs_ener'])
+        else:
+            a['EF'] = a['data'][head[0]]
         a['EI'] = a['dcm_ener']
         a['command'] = runtype
         a['numor'] = run
@@ -256,13 +259,13 @@ def load_tiff(run, no, exp, plot_hist=False, ax=None, threshold=None, cutoff=Non
 class irixs:
 
     def __init__(self, exp=None,
-                 E0=None, x0=None, roix=[0,2048], roiy=[0,2048],
+                 E0=None, y0=None, roix=[0,2048], roiy=[0,2048],
                  threshold=1010, cutoff=1800, detfac=935,
                  analyser=None):
         '''
         exp -- experiment title / data filename prefix
         E0 -- elastic energy: use None to extract from .fio file
-        x0 -- corresponding vertical pixel position on detector
+        y0 -- corresponding vertical pixel position on detector
         analyser -- analyser crystal details
         roix -- detector region of interest
         roiy -- detector region of interest
@@ -275,7 +278,7 @@ class irixs:
         self.runs = {}
 
         self.E0 = E0
-        self.x0 = x0
+        self.y0 = y0
         self.roix = roix
         self.roiy = roiy
         self.threshold = threshold
@@ -302,6 +305,8 @@ class irixs:
         os.makedirs(self.savedir_con, exist_ok=True)
         os.makedirs(self.savedir_det, exist_ok=True)
         os.makedirs(self.savedir_fig, exist_ok=True)
+
+        self.corr_shift = False #distortion correction
 
 
     def load(self, numors):
@@ -357,16 +362,17 @@ class irixs:
                         img[~np.logical_and(img>self.to, img<self.co)] = 0
                         a['img'].append(img)
             
-            if isinstance(self.x0,dict):
-                a['x0'] = self.x0[numor]
+            if isinstance(self.y0,dict):
+                a['y0'] = self.y0[numor]
             else:
-                a['x0'] = self.x0
+                a['y0'] = self.y0
             
             print()
 
 
     def detector(self, numors, com=False, fit=False,
-                 plot=True, vmax=10, show_x0=True, savefig=False):
+                 plot=True, vmax=10, savefig=False,
+                 use_distortion_corr=False):
 
         roix, roiy = self.roix, self.roiy
         roic = '#F012BE'
@@ -399,6 +405,11 @@ class irixs:
             imgarr = np.atleast_3d(np.array(a['img']))
             imtotal = np.nansum(imgarr, axis=0) / imgarr.shape[0]
             imgarr = imgarr[:,roiy[0]:roiy[1], roix[0]:roix[1]]
+
+            if use_distortion_corr and self.corr_shift is not False:
+                for sh,(c1,c2) in zip(self.corr_shift,self.corr_regions):
+                    c1,c2 = c1+roix[0],c2+roix[0]
+                    imtotal[:,c1:c2] = np.roll(imtotal[:,c1:c2],sh,axis=0)
 
             if oneshot:
                 x = np.arange(self.roiy[0], self.roiy[1])
@@ -491,8 +502,7 @@ class irixs:
                                 linewidth=0.5, linestyle='dashed',
                                 edgecolor=roic, fill=False)
                 ax[0].add_patch(rect)
-                if show_x0:
-                    ax[0].axhline(self.x0, color=roic, lw=0.5, dashes=(2, 2))
+                ax[0].axhline(self.y0, color=roic, lw=0.5, dashes=(2, 2))
                 
                 div = make_axes_locatable(ax[0])
                 cax = div.append_axes('right', size='4%', pad=0.1)
@@ -554,10 +564,12 @@ class irixs:
 
 
 
-    def condition(self, bins, numors, fit=False):
+    def condition(self, bins, numors, fit=False, use_distortion_corr=True):
 
         if isinstance(numors, int):
             numors = [numors]
+
+        xinit = np.arange(self.roiy[0], self.roiy[1])
 
         for numor in numors:
 
@@ -573,17 +585,26 @@ class irixs:
                 except KeyError:
                     self.load(n)
                 a = self.runs[n]
-                if a is None or a['img'] is None or a['auto'] not in ['rixs_ener', 'dcm_ener']:
+                if a is None or a['img'] is None or a['auto'] not in ['rixs_ener', 'dcm_ener', 'exp_dmy01']:
                     continue
                 else:
                     ns.append(n)
+
                 for ef, img in zip(a['EF'],a['img']):
-                    img = img[self.roiy[0]:self.roiy[1], self.roix[0]:self.roix[1]]
+
+                    img = deepcopy(img[:,self.roix[0]:self.roix[1]])
+
+                    if use_distortion_corr and self.corr_shift is not False:
+                        for sh,(c1,c2) in zip(self.corr_shift,self.corr_regions):
+                            img[:,c1:c2] = np.roll(img[:,c1:c2],sh,axis=0)
+
+                    img  = img[self.roiy[0]:self.roiy[1]]
+
                     yi = np.sum(img, axis=1)
-                    xi = np.arange(self.roiy[0], self.roiy[1])
-                    xi = (xi - a['x0']) * pix_to_E(ef, self.dspacing) + ef
+                    xi = (xinit - a['y0']) * pix_to_E(ef, self.dspacing) + ef
                     x.extend(xi)
                     y.extend(yi)
+            
             if not x:
                 continue
 
@@ -617,28 +638,32 @@ class irixs:
             header+= 'detector_factor: {0}\n'.format(self.detfac)
             header+= 'roi_x: {0}\n'.format(self.roix)
             header+= 'roi_y: {0}\n'.format(self.roiy)
-            header+= 'x0_refnum: {0}\n'.format(a['x0'])
+            header+= 'E0_ypixel: {0}\n'.format(a['y0'])
             header+= 'energy_offset: {0}\n'.format(en)
             np.savetxt(savefile, np.array([x, y]).T, header=header)
 
-            x, y, e = binning(x, y, bins)
+            y = y / PHOTON_FACTOR
+            if bins:
+                x, y, e = binning(x, y, bins)
+            else:
+                e = np.sqrt(y)
+            y[~np.isfinite(y)] = 0
             a['x'], a['y'], a['e'] = x, y, e
 
+            if not bins:
+                print('condition #{0} (no binning)'.format(ns), end='  ')
             if isinstance(bins, int):
                 print('condition #{0} (bin: {1})'.format(ns, bins), end='  ')
             else:
                 print('condition #{0} (bin: {1}eV)'.format(ns, bins), end='  ')
             if fit:
-                try:
-                    a['xf'], a['yf'], a['p'] = peak_fit(x, y)
-                    print('amp: {:.2f}'.format(a['p'][0]), end='  ')
-                    print('fwhm: {:.3f}'.format(a['p'][1]*2), end='  ')
-                    print('cen: {:.4f}'.format(a['p'][2]), end='  ')
-                    if defs['fit_pv']:
-                        print('fra: {:3.1f}'.format(a['p'][3]), end='  ')
-                    print('bg: {:.2f}'.format(a['p'][3]),end='')
-                except:
-                    a['p'] = False
+                a['xf'], a['yf'], a['p'] = peak_fit(x, y)
+                print('cen: {:.4f}'.format(a['p'][2]), end='  ')
+                print('amp: {:.2f}'.format(a['p'][0]), end='  ')
+                print('fwhm: {:.3f}'.format(a['p'][1]*2), end='  ')
+                if defs['fit_pv']:
+                    print('fra: {:3.1f}'.format(a['p'][3]), end='  ')
+                print('bg: {:.2f}'.format(a['p'][3]),end='')
             else:
                 a['p'] = False
             print()
@@ -655,7 +680,7 @@ class irixs:
 
 
     def plot(self, numors, ax=None, step='numor', sort=False, rev=False,
-             plot_det=False, time_norm=None, norm=False, fit=False,
+             plot_det=False, norm=False, fit=False,
              ystp=0, yoff=None, xoff=None, cmap=None, labels=None, fmt='-', lw=1,
              vline=False, leg=True, title=None, savefig=True, ysca=None,
              stderr=False):
@@ -686,13 +711,14 @@ class irixs:
         for i, a in enumerate(runs):
 
             numor = a['numor']
-            xf, yf, p = None, None, None
+            xf, yf, p = False, False, False
             if 'x' in a and not plot_det:
                 x, y, e = deepcopy(a['x']), deepcopy(a['y']), deepcopy(a['e'])
                 if a['p'] is not False:
                     xf, yf, p = a['xf'], a['yf'], a['p']
             elif 'xd' in a and plot_det:
                 x, y = deepcopy(a['xd']), deepcopy(a['yd'])
+                e = False
                 if a['pd'] is not False:
                     xf, yf, p = a['xfd'], a['yfd'], a['pd']
 
@@ -702,32 +728,33 @@ class irixs:
                 else:
                     x+=xoff
 
-            if time_norm:
-                m = a['data']['oh2_t01'][0]
-                y = y/m * 60
-
-            if norm is not False:
-                if isinstance(norm,(list,tuple)):
-                    nn = np.average(y[find_nearest(x,norm[0]):find_nearest(x,norm[1])])
-                    y = y/nn
-                elif norm == 'minmax':
-                    y = (y-min(y))/(max(y)-min(y))
-                elif norm is True:
-                    y = y/max(y)
-                else:
-                    y = y/y[find_nearest(x,norm)]
+            if norm is True:
+                maxy = max(y)
+                y = y/maxy
+                if e is not False:
+                    e = e/maxy
+                if p is not False:
+                    yf = yf/maxy
 
             if ysca is not None:
                 if isinstance(ysca, list):
-                    y*=ysca[i]
+                    ys = ysca[i]
                 else:
-                    y*=ysca
+                    ys = ysca
+                y*=ys
+                if e is not False:
+                    e*=ys
+                if p is not False:
+                    yf*=ys
 
             if yoff is not None:
                 if isinstance(yoff, list):
-                    y+=yoff[i]
+                    yo = yoff[i]
                 else:
-                    y+=yoff
+                    yo = yoff
+                y+=yo
+                if p is not False:
+                    yf+=yo
 
             if cmap:
                 c = cmap(i/len(numors))
@@ -761,10 +788,7 @@ class irixs:
                             transform=ax.transAxes)
 
         ax.minorticks_on()
-        if time_norm:
-            ax.set_ylabel('Intensity / 60s')
-        else:
-            ax.set_ylabel('Intensity')
+        ax.set_ylabel('Intensity')
         if 'x' in a:
             ax.set_xlabel('Energy Transfer (eV)')
         else:
@@ -785,7 +809,6 @@ class irixs:
                 sc = '_'.join(str(n) for n in numors)
                 savefig = 's{}_{}'.format(sc, a['auto'])
             plt.savefig('{}/{}.pdf'.format(self.savedir_fig, savefig), dpi=300)
-
 
 
     def check_run(self, numor, no=0, vmin=0, vmax=10):
@@ -836,3 +859,67 @@ class irixs:
         fig.canvas.mpl_connect('key_press_event', press)
 
 
+    def calc_distortion(self, numor, no=0, slices=8, force_y0=False,
+                            plot=True, vmin=0, vmax=10):
+
+        self.load(numor)
+        a = self.runs[numor]
+
+        img = a['img'][no]
+        img = img[self.roiy[0]:self.roiy[1], self.roix[0]:self.roix[1]]
+
+        y = np.sum(img,axis=1)
+        x = np.arange(self.roiy[0],self.roiy[1])
+        _,_,pinit = peak_fit(x, y)
+        y0 = int(round(pinit[2]))
+        print('fitted y0: {}'.format(y0))
+        print('initial fwhm: {:.4f}'.format(pinit[1]*2))
+
+        if force_y0:
+            y0 = self.y0
+
+        slice_width = img.shape[1]/slices
+        shift = []
+        regions = []
+        
+        for i in range(slices):
+            c1, c2 = int(i*slice_width), int(i*slice_width+slice_width)
+            yi = np.sum(img[:,c1:c2],axis=1)
+            try:
+                _,_,pi = peak_fit(x,yi)
+                cen = int(round(pi[2]))
+            except RuntimeError:
+                cen = y0
+            shift.append(y0-cen)
+            regions.append([c1,c2])
+
+        self.corr_shift = shift
+        self.corr_regions = regions
+
+        imgcorr = deepcopy(img)
+        for sh,(c1,c2) in zip(shift,regions):
+            yi = np.sum(imgcorr[:,c1:c2],axis=1)
+            imgcorr[:,c1:c2] = np.roll(imgcorr[:,c1:c2],sh,axis=0)
+
+        ycorr = np.sum(imgcorr,axis=1)
+        _,_,pfinal = peak_fit(x, ycorr)
+        print('final fwhm: {:.4f}'.format(pfinal[1]*2))
+
+        if plot:
+            _, ax = plt.subplots(1,3, figsize=(10, 4),constrained_layout=True)
+            ax[0].plot(x,y,lw=0.5)
+            ax[0].plot(x,ycorr,lw=0.5)
+
+            ax[1].imshow(img, origin='lower', cmap=plt.get_cmap('bone_r'), aspect='auto',
+                        extent=(self.roix[0],self.roix[1],self.roiy[0],self.roiy[1]),
+                        vmin=vmin, vmax=vmax, interpolation='hanning')
+
+            ax[2].imshow(imgcorr, origin='lower', cmap=plt.get_cmap('bone_r'), aspect='auto',
+                        extent=(self.roix[0],self.roix[1],self.roiy[0],self.roiy[1]),
+                        vmin=vmin, vmax=vmax, interpolation='hanning')
+
+            ax[1].axhline(y0,color='#F012BE',lw=0.5)
+            ax[2].axhline(y0,color='#F012BE',lw=0.5)
+            for sh,(c1,c2) in zip(shift,regions):
+                ax[1].axvline(c1+self.roix[0],color='#F012BE',lw=0.5)
+                ax[2].axvline(c1+self.roix[0],color='#F012BE',lw=0.5)
