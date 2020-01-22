@@ -1,14 +1,11 @@
-import os
-import shutil
+import os, sys, shutil
 import numpy as np
 import matplotlib.pyplot as plt
 import warnings
-import pickle
 
 from numpy import pi,sin,cos,tan,arccos,arcsin,arctan,sqrt,log,radians,degrees
 from scipy.optimize import curve_fit
 from matplotlib.patches import Rectangle
-from matplotlib.colors import LogNorm
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from copy import deepcopy
 
@@ -131,13 +128,13 @@ def peak_fit(x, y):
     return xf, yi, p
 
 
-def psave(obj, filename):
-    pickle.dump(obj,open(filename,'wb'))
-
-
-def pload(filename):
-    return pickle.load(open(filename,'rb'))
-
+def progress(iteration, total, prefix='', bar_length=20):
+    filled_length = int(round(bar_length * iteration / float(total)))
+    bar = '|' * filled_length + '-' * (bar_length - filled_length)
+    sys.stdout.write('\r{0} {1} '.format(prefix, bar)),
+    if iteration == total:
+        sys.stdout.write('\n')
+    sys.stdout.flush()
 
 #### Load Files ###############################################################
 
@@ -148,7 +145,7 @@ def load_fio(run, exp, datdir):
     complete = False
     path = '{0}/{1}_{2:05d}.fio'.format(datdir, exp, run)
     if not os.path.isfile(path):
-        print('load_fio: failed to load {}'.format(path))
+        print('#{} - no .fio'.format(run))
         return
 
     with open(path) as f:
@@ -207,7 +204,7 @@ def load_fio(run, exp, datdir):
         return a
 
 
-def load_tiff(run, no, exp, datdir, localdir, indicator=True):
+def load_tiff(run, no, exp, datdir, localdir):
 
     path = '{0}/{1}_{2:05d}/andor/{1}_{2:05d}_{3:04d}.tiff'.format(
             datdir, exp, run, no)
@@ -218,26 +215,17 @@ def load_tiff(run, no, exp, datdir, localdir, indicator=True):
                     localdir, exp, run, no)
             try:
                 img = imread(path2)
-                if indicator:
-                    print('-', end=' ', flush=True)
             except (Warning, FileNotFoundError, OSError):
                 try:
                     os.makedirs(os.path.dirname(path2), exist_ok=True)
                     shutil.copyfile(path, path2)
                     img = imread(path2)
-                    if indicator:
-                        print('*', end=' ', flush=True)
                 except:
-                    if indicator:
-                        print('\nload_tiff: failed to copy {}'.format(path))
                     return
         else:
             try:
                 img = imread(path)
-                if indicator:
-                    print('*', end=' ', flush=True)
             except (Warning, FileNotFoundError, OSError):
-                print('\nload_tiff: failed to load {}'.format(path))
                 return
     
     return img
@@ -340,29 +328,34 @@ class irixs:
                 continue
 
             if 'img' not in a or a['img'] is None:
-                itest = load_tiff(numor, 0, self.exp, self.datdir, self.localdir, indicator=False)
-                if itest is None:
+                imtest = load_tiff(numor, 0, self.exp, self.datdir, self.localdir)
+                if imtest is None:
+                    print('#{0} - no images'.format(numor))
                     a['img'] = None
                     continue
                 else:
                     a['img'] = []
 
-            print('load #{} ({} points)'.format(numor, a['pnts']), end=' ')
-
             for i,_ in enumerate(a['EF']):
                 if i > len(a['img'])-1:
                     img = load_tiff(numor, i, self.exp, self.datdir, self.localdir)
+                    if img is None:
+                        print('!!!')
+                        break
                     if img is not None:
                         img -= self.detfac
                         img[~np.logical_and(img>self.to, img<self.co)] = 0
                         a['img'].append(img)
-            
+                    sys.stdout.write('\r#{0} - {1:>3}/ {2:<3} '.format(numor, i+1, a['pnts']))
+                    if i+1 == a['pnts']:
+                        sys.stdout.write('\n')
+                    sys.stdout.flush()
+
             if isinstance(self.y0,dict):
                 a['y0'] = self.y0[numor]
             else:
                 a['y0'] = self.y0
-            
-            print()
+
 
 
     def detector(self, numors, com=False, fit=False,
@@ -565,6 +558,7 @@ class irixs:
             numors = [numors]
 
         xinit = np.arange(self.roiy[0], self.roiy[1])
+        report = '\n'
 
         for numor in numors:
 
@@ -645,23 +639,17 @@ class irixs:
             y[~np.isfinite(y)] = 0
             a['x'], a['y'], a['e'] = x, y, e
 
-            if not bins:
-                print('condition #{0} (no binning)'.format(ns), end='  ')
-            if isinstance(bins, int):
-                print('condition #{0} (bin: {1})'.format(ns, bins), end='  ')
-            else:
-                print('condition #{0} (bin: {1}eV)'.format(ns, bins), end='  ')
             if fit:
                 a['xf'], a['yf'], a['p'] = peak_fit(x, y)
-                print('cen: {:.4f}'.format(a['p'][2]), end='  ')
-                print('amp: {:.2f}'.format(a['p'][0]), end='  ')
-                print('fwhm: {:.3f}'.format(a['p'][1]*2), end='  ')
+                report += '#{0} (bin: {1})  '.format(ns, bins)
+                report += 'cen:{0:8.4f}   '.format(a['p'][2])
+                report += 'amp:{0:6.2f}   '.format(a['p'][0])
+                report += 'fwhm:{0:6.3f}   '.format(a['p'][1]*2)
                 if defs['fit_pv']:
-                    print('fra: {:3.1f}'.format(a['p'][3]), end='  ')
-                print('bg: {:.2f}'.format(a['p'][3]),end='')
+                    report += 'fra:{0:4.1f}   '.format(a['p'][3])
+                report += 'bg:{0:6.3f}\n'.format(a['p'][3])
             else:
                 a['p'] = False
-            print()
 
             header+= 'bin_size: {0}\n'.format(bins)
             if bins < 5:
@@ -671,6 +659,8 @@ class irixs:
                 savefile = '{0}/{1}_{2:05d}_b{3}.txt'.format(
                         self.savedir_con, self.exp, n, bins)
             np.savetxt(savefile, np.array([x, y, e]).T, header=header)
+        if fit:
+            print(report)
 
 
 
@@ -934,3 +924,4 @@ class irixs:
             for sh,(c1,c2) in zip(shift,regions):
                 ax[1].axvline(c1+self.roix[0],color='#F012BE',lw=0.5)
                 ax[2].axvline(c1+self.roix[0],color='#F012BE',lw=0.5)
+
