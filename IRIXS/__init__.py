@@ -148,7 +148,7 @@ def load_fio(run, exp, datdir):
     complete = False
     path = '{0}/{1}_{2:05d}.fio'.format(datdir, exp, run)
     if not os.path.isfile(path):
-        print('failed to load #{}'.format(path))
+        print('load_fio: failed to load {}'.format(path))
         return
 
     with open(path) as f:
@@ -207,11 +207,7 @@ def load_fio(run, exp, datdir):
         return a
 
 
-def load_tiff(run, no, exp, plot_hist=False, ax=None, threshold=None, cutoff=None,
-              indicator=True):
-    
-    datdir = defs['datdir']
-    localdir = defs['savedir_raw']
+def load_tiff(run, no, exp, datdir, localdir, indicator=True):
 
     path = '{0}/{1}_{2:05d}/andor/{1}_{2:05d}_{3:04d}.tiff'.format(
             datdir, exp, run, no)
@@ -243,15 +239,8 @@ def load_tiff(run, no, exp, plot_hist=False, ax=None, threshold=None, cutoff=Non
             except (Warning, FileNotFoundError, OSError):
                 print('\nload_tiff: failed to load {}'.format(path))
                 return
-
-    if plot_hist:
-        if ax is None:
-            _, ax = plt.subplots()
-        b, c = np.histogram(img, bins=range(threshold, cutoff, 1))
-        ax.bar(c[:-1], b)
-        ax.set_title('#{} no {}'.format(run, no))
-    else:
-        return img
+    
+    return img
 
 
 #### Processing Routine #######################################################
@@ -351,8 +340,8 @@ class irixs:
                 continue
 
             if 'img' not in a or a['img'] is None:
-                imgtest = load_tiff(numor, 0, self.exp, indicator=False)
-                if imgtest is None:
+                itest = load_tiff(numor, 0, self.exp, self.datdir, self.localdir, indicator=False)
+                if itest is None:
                     a['img'] = None
                     continue
                 else:
@@ -362,7 +351,7 @@ class irixs:
 
             for i,_ in enumerate(a['EF']):
                 if i > len(a['img'])-1:
-                    img = load_tiff(numor, i, self.exp)
+                    img = load_tiff(numor, i, self.exp, self.datdir, self.localdir)
                     if img is not None:
                         img -= self.detfac
                         img[~np.logical_and(img>self.to, img<self.co)] = 0
@@ -685,11 +674,11 @@ class irixs:
 
 
 
-    def plot(self, numors, ax=None, step='numor', sort=False, rev=False,
-             plot_det=False, norm=False, fit=False,
-             ystp=0, yoff=None, xoff=None, cmap=None, labels=None, fmt='-', lw=1,
-             vline=False, leg=True, title=None, savefig=True, ysca=None,
-             stderr=False):
+    def plot(self, numors, ax=None, step='numor', labels=None, sort=False, rev=False,
+             norm=False, ysca=None, ystp=0, yoff=None, xoff=None,
+             fit=False, stderr=False, cmap=None, fmt='-', lw=1,
+             vline=[0], leg=True, title=None, savefig=True,
+             plot_det=False):
 
         if not isinstance(numors,(list,tuple,range)):
             numors = [numors]
@@ -727,6 +716,9 @@ class irixs:
                 e = False
                 if a['pd'] is not False:
                     xf, yf, p = a['xfd'], a['yfd'], a['pd']
+            else:
+                print('#{0}: nothing to plot'.format(numor))
+                continue
 
             if xoff is not None:
                 if isinstance(xoff, list):
@@ -734,8 +726,11 @@ class irixs:
                 else:
                     x+=xoff
 
-            if norm is True:
-                maxy = max(y)
+            if norm:
+                if isinstance(norm,(tuple,list)):
+                    maxy = np.mean(y[(x > min(norm)) & (x < max(norm))])
+                else:
+                    maxy = max(y)
                 y = y/maxy
                 if e is not False:
                     e = e/maxy
@@ -809,7 +804,6 @@ class irixs:
                 ax.axvline(v, color='k', lw=0.5)
         if title:
             ax.set_title(title)
-            #ax.text(0.05, 0.95, title, transform=ax.transAxes, va='top')
         if savefig:
             if not isinstance(savefig, str):
                 sc = '_'.join(str(n) for n in numors)
@@ -817,13 +811,14 @@ class irixs:
             plt.savefig('{}/{}.pdf'.format(self.savedir_fig, savefig), dpi=300)
 
 
-    def check_run(self, numor, no=0, vmin=0, vmax=10):
+    def check_run(self, numor, hist=False, no=0, vmin=0, vmax=10):
         
         '''Step through each detector image of a run.
         run -- run number
-        no -- starting step number (default is the first)
-        vmin -- colourmap minimum (defaults to threshold)
-        vmax -- colourmap maximum (defaults to cutoff)
+        numor -- starting step number (default is the first)
+        hist -- plot histogram rather than detector map
+        vmin -- colourmap minimum
+        vmax -- colourmap maximum
         '''
 
         self.load(numor)
@@ -835,20 +830,30 @@ class irixs:
         i['idx'] = no
         fig, i['ax'] = plt.subplots()
 
-        img = a['img'][no]
-        imgdim = img.shape
+        imdat = a['img'][no]
+        imgdim = imdat.shape
         cmap = plt.get_cmap('bone_r')
 
-        i['im'] = i['ax'].imshow(img, origin='lower', cmap=cmap,
+        if hist:
+            b, c = np.histogram(imdat, bins=range(self.to, self.co, 1))
+            i['ax'].bar(c[:-1], b)
+        else:
+            i['im'] = i['ax'].imshow(imdat, origin='lower', cmap=cmap,
                                  vmin=vmin, vmax=vmax, interpolation='hanning')
         i['ax'].set_title('#{} no {}'.format(numor, i['idx']))
 
-        def do_plot(i):
+        def do_plot(i,do_hist):            
             try:
-                i['im'].set_data(a['img'][i['idx']])
+                imdat = a['img'][i['idx']]
             except IndexError:
-                i['im'].set_data(np.zeros(imgdim))
+                imdat = np.zeros(imgdim)
                 print('check run: no tiff for step {}'.format(i['idx']))
+            if do_hist:
+                b, c = np.histogram(imdat, bins=range(self.to, self.co, 1))
+                i['ax'].cla()
+                i['ax'].bar(c[:-1], b)
+            else:
+                i['im'].set_data(imdat)
             i['ax'].set_title('#{} no {}'.format(numor, i['idx']))
             plt.draw()
 
@@ -856,11 +861,11 @@ class irixs:
             if event.key == 'left':
                 if i['idx'] > 0:
                     i['idx'] -= 1
-                    do_plot(i)
+                    do_plot(i,hist)
             elif event.key == 'right':
                 if i['idx'] < pnts-1:
                     i['idx'] += 1
-                    do_plot(i)
+                    do_plot(i,hist)
 
         fig.canvas.mpl_connect('key_press_event', press)
 
