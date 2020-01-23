@@ -459,7 +459,6 @@ class irixs:
                 plt.suptitle('#{}'.format(a['numor']), ha='left', va='top',
                             x=0.005, y=0.995)
 
-                # image map
                 im = ax[0].imshow(imtotal, origin='lower', vmax=vmax,
                                   cmap=plt.get_cmap('bone_r'),
                                   interpolation='hanning')
@@ -484,7 +483,6 @@ class irixs:
                 ax[0].xaxis.set_minor_locator(plt.MultipleLocator(100))
                 ax[0].yaxis.set_minor_locator(plt.MultipleLocator(100))
 
-                #total counts
                 ax[1].plot(x, y, lw=1, color='#001F3F')
                 if oneshot:
                     ax[1].set_xlabel('y-pixel')
