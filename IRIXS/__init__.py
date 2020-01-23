@@ -27,7 +27,6 @@ defs = {
 
 # other
 'fit_pv': True,  #pseudovoight or lorentzian
-'expname': None, #historical
 }
 
 PHOTON_FACTOR = 788
@@ -217,24 +216,23 @@ def load_tiff(run, no, exp, datdir, localdir):
 
 class irixs:
 
-    def __init__(self, exp=None,
-                 E0=None, y0=None, roix=[0,2048], roiy=[0,2048],
+    def __init__(self, exp,
+                 y0=None, roix=[0,2048], roiy=[0,2048],
                  threshold=1010, cutoff=1800, detfac=935,
-                 analyser=None,
-                 datdir=None):
+                 E0=None, analyser=None, datdir=None):
         '''
         exp -- experiment title / data filename prefix
-        E0 -- elastic energy: use None to extract from .fio file
+        E0 -- elastic energy: typically use None to extract from .fio file
         y0 -- corresponding vertical pixel position on detector
-        analyser -- analyser crystal details
         roix -- detector region of interest
         roiy -- detector region of interest
-        threshold -- minimum to kill signal noise (use histogram to find)
-        cutoff -- upper limit to kill cosmic rays (use histogram to find)
-        detfac -- andor detector factor
+        threshold -- minimum to kill readout noise (use histogram to refine)
+        cutoff -- upper limit to kill cosmic rays (use histogram to refine)
+        detfac -- andor detector factor (0 if andor bgnd sub is enabled, 935 otherwise)
+        analyser -- analyser crystal lattice and reflection
         '''
 
-        self.exp = defs['expname'] if exp is None else exp
+        self.exp = exp
         self.runs = {}
 
         self.E0 = E0
@@ -422,15 +420,15 @@ class irixs:
             header+= 'roi_y: {0}\n\n'.format(self.roiy)
 
             if oneshot:
-                header+= 'Y-PIXEL COUNTS'
+                header+= '{0:>24}{1:>24}'.format('y-pixel','counts')
                 save_array = np.array([x, y]).T
             elif com:
-                header+= 'EF COUNTS COMV COMH'
+                header+= '{0:>24}{1:>24}{2:>24}{3:>24}'.format(step,'roi-counts','vert-COM','horiz-COM')
                 comV, comH = np.array(comV), np.array(comH)
                 a['comV'], a['comH'] = comV, comH
                 save_array = np.array([x, y, comV, comH]).T
             else:
-                header+= '{} COUNTS'.format(step)
+                header+= '{0:>24}{1:>24}'.format(step,'roi-counts')
                 save_array = np.array([x, y]).T
             np.savetxt(savefile, save_array, header=header)
 
@@ -579,39 +577,42 @@ class irixs:
             if not x:
                 continue
 
-            n = ns[0]
-            ns = ','.join([str(ni) for ni in ns])
-            a = self.runs[n]
+            if len(ns) > 1:
+                n = ns[0]
+                a = self.runs[n]
+            a['label'] = '+'.join([str(ni) for ni in ns])
+
             x, y = np.array(x), np.array(y)
             y = y[np.argsort(x)]
             x = np.sort(x)
-
             if self.E0 is None:
                 en = a['EI']
             else:
                 en = self.E0
             x -= en
 
-            savefile = '{0}/{1}_{2:05d}.txt'.format(
-                    self.savedir_dat, self.exp, n)
             header = 'experiment: {0}\n'.format(self.exp)
-            header+= 'run_no: {0}\n'.format(ns)
-            header+= 'command: {0}\n'.format(a['command'])
-            header+= 'EI_instrument: {0}\n'.format(a["EI"])
-            header+= 'rixs_th: {0}\n'.format(a["rixs_th"])
-            header+= 'rixs_chi: {0}\n'.format(a["rixs_chi"])
+            header+= 'run: {0}\n'.format(ns)
+            header+= 'command: {0}\n\n'.format(a['command'])
+            header+= 'dcm_ener: {0}\n'.format(a["dcm_ener"])
+            header+= 'rixs_ener: {0}\n'.format(a["rixs_ener"])
             if 't_coldhead' in a:
                 header+= 't_coldhead: {0}\n'.format(a["t_coldhead"])
             if 't_sample' in a:
                 header+= 't_sample: {0}\n'.format(a["t_sample"])
+            header+= 'rixs_th: {0}\n'.format(a["rixs_th"])
+            header+= 'rixs_chi: {0}\n\n'.format(a["rixs_chi"])
             header+= 'threshold: {0}\n'.format(self.threshold)
             header+= 'cutoff: {0}\n'.format(self.cutoff)
             header+= 'detector_factor: {0}\n'.format(self.detfac)
             header+= 'roi_x: {0}\n'.format(self.roix)
             header+= 'roi_y: {0}\n'.format(self.roiy)
             header+= 'E0_ypixel: {0}\n'.format(a['y0'])
-            header+= 'energy_offset: {0}\n'.format(en)
-            np.savetxt(savefile, np.array([x, y]).T, header=header)
+            header+= 'E0_offset: {0}\n'.format(en)
+
+            savefile = '{0}/{1}_{2:05d}.txt'.format(self.savedir_dat, self.exp, n)
+            np.savetxt(savefile, np.array([x, y]).T,
+                        header=header+'\n{0:>24}{1:>24}'.format(a['auto'],'counts'))
 
             y = y / PHOTON_FACTOR
             if bins:
@@ -623,7 +624,7 @@ class irixs:
 
             if fit:
                 a['xf'], a['yf'], a['p'] = peak_fit(x, y)
-                report += '#{0:<4} (bin: {1})  '.format(ns, bins)
+                report += '#{0:<4} (bin: {1})  '.format(n, bins)
                 report += 'cen:{0:8.4f}   '.format(a['p'][2])
                 report += 'amp:{0:6.2f}   '.format(a['p'][0])
                 report += 'fwhm:{0:6.3f}   '.format(a['p'][1]*2)
@@ -636,11 +637,12 @@ class irixs:
             header+= 'bin_size: {0}\n'.format(bins)
             if bins < 5:
                 savefile = '{0}/{1}_{2:05d}_b{3:.1f}meV.txt'.format(
-                        self.savedir_con, self.exp, n, bins*1000)
+                    self.savedir_con, self.exp, n, bins*1000)
             else:
                 savefile = '{0}/{1}_{2:05d}_b{3}.txt'.format(
-                        self.savedir_con, self.exp, n, bins)
-            np.savetxt(savefile, np.array([x, y, e]).T, header=header)
+                    self.savedir_con, self.exp, n, bins)
+            np.savetxt(savefile, np.array([x, y, e]).T,
+                        header=header+'\n{0:>24}{1:>24}{2:>24}'.format(a['auto'],'counts','stderr'))
         if fit:
             print(report)
 
@@ -676,7 +678,6 @@ class irixs:
 
         for i, a in enumerate(runs):
 
-            numor = a['numor']
             xf, yf, p = False, False, False
             if 'x' in a and not plot_det:
                 x, y, e = deepcopy(a['x']), deepcopy(a['y']), deepcopy(a['e'])
@@ -688,7 +689,7 @@ class irixs:
                 if a['pd'] is not False:
                     xf, yf, p = a['xfd'], a['yfd'], a['pd']
             else:
-                print('#{0}: nothing to plot'.format(numor))
+                print('#{0}: nothing to plot'.format(a['numor']))
                 continue
 
             if xoff is not None:
@@ -733,7 +734,7 @@ class irixs:
             else:
                 c = None
 
-            label = '#{0}'.format(numor)
+            label = '#{0}'.format(a['label'])
             if labels:
                 label += ' {0}'.format(labels[i])
             elif step == 'T':
@@ -819,13 +820,13 @@ class irixs:
                                  vmin=vmin, vmax=vmax, interpolation='hanning')
         i['ax'].set_title('#{} no {}'.format(numor, i['idx']))
 
-        def do_plot(i,do_hist):            
+        def do_plot(i):
             try:
                 imdat = a['img'][i['idx']]
             except IndexError:
                 imdat = np.zeros(imgdim)
                 print('check run: no tiff for step {}'.format(i['idx']))
-            if do_hist:
+            if hist:
                 b, c = np.histogram(imdat, bins=range(self.to, self.co, 1))
                 i['ax'].cla()
                 i['ax'].bar(c[:-1], b)
@@ -838,11 +839,11 @@ class irixs:
             if event.key == 'left':
                 if i['idx'] > 0:
                     i['idx'] -= 1
-                    do_plot(i,hist)
+                    do_plot(i)
             elif event.key == 'right':
                 if i['idx'] < pnts-1:
                     i['idx'] += 1
-                    do_plot(i,hist)
+                    do_plot(i)
 
         fig.canvas.mpl_connect('key_press_event', press)
 
@@ -911,3 +912,4 @@ class irixs:
             for sh,(c1,c2) in zip(shift,regions):
                 ax[1].axvline(c1+self.roix[0],color='#F012BE',lw=0.5)
                 ax[2].axvline(c1+self.roix[0],color='#F012BE',lw=0.5)
+
