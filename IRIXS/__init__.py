@@ -346,7 +346,7 @@ class irixs:
                         img -= self.detfac
                         img[~np.logical_and(img>self.to, img<self.co)] = 0
                         a['img'].append(img)
-                    sys.stdout.write('\r#{0} - {1:>3}/ {2:<3} '.format(numor, i+1, a['pnts']))
+                    sys.stdout.write('\r#{0} - {1:<3}/{2:>3} '.format(numor, i+1, a['pnts']))
                     if i+1 == a['pnts']:
                         sys.stdout.write('\n')
                     sys.stdout.flush()
@@ -364,6 +364,7 @@ class irixs:
 
         roix, roiy = self.roix, self.roiy
         roic = '#F012BE'
+        report = ''
 
         if not isinstance(numors,(list,tuple,range)):
             numors = [numors]
@@ -452,21 +453,20 @@ class irixs:
                 save_array = np.array([x, y]).T
             np.savetxt(savefile, save_array, header=header)
 
-            print('detector #{}'.format(numor), end='  ')
             if fit:
                 try:
                     a['xfd'], a['yfd'], a['pd'] = peak_fit(x, y)
-                    print('amp: {:.2f}'.format(a['pd'][0]), end='  ')
-                    print('fwhm: {:.3f}'.format(a['pd'][1]*2), end='  ')
-                    print('cen: {:.4f}'.format(a['pd'][2]), end='  ')
+                    report += '\n#{0} (detector)  '.format(ns)
+                    report += 'cen:{0:8.4f}   '.format(a['pd'][2])
+                    report += 'amp:{0:6.2f}   '.format(a['pd'][0])
+                    report += 'fwhm:{0:6.3f}   '.format(a['pd'][1]*2)
                     if defs['fit_pv']:
-                        print('fra: {:3.1f}'.format(a['pd'][3]), end='  ')
-                    print('bg: {:.2f}'.format(a['pd'][3]), end='')
+                        report += 'fra:{0:4.1f}   '.format(a['pd'][3])
+                    report += 'bg:{0:6.3f}'.format(a['pd'][3])
                 except:
                     a['pd'] = False
             else:
                 a['pd'] = False
-            print()
 
             if plot:
                 if com:
@@ -549,7 +549,7 @@ class irixs:
                         savename = '{0}/{1}_s{2}.pdf'.format(
                                 self.savedir_fig, savefig, a['numor']) 
                     plt.savefig(savename, dpi=300)
-
+        print(report)
 
 
     def condition(self, bins, numors, fit=False, use_distortion_corr=True):
@@ -558,7 +558,7 @@ class irixs:
             numors = [numors]
 
         xinit = np.arange(self.roiy[0], self.roiy[1])
-        report = '\n'
+        report = ''
 
         for numor in numors:
 
@@ -641,13 +641,13 @@ class irixs:
 
             if fit:
                 a['xf'], a['yf'], a['p'] = peak_fit(x, y)
-                report += '#{0} (bin: {1})  '.format(ns, bins)
+                report += '\n#{0} (bin: {1})  '.format(ns, bins)
                 report += 'cen:{0:8.4f}   '.format(a['p'][2])
                 report += 'amp:{0:6.2f}   '.format(a['p'][0])
                 report += 'fwhm:{0:6.3f}   '.format(a['p'][1]*2)
                 if defs['fit_pv']:
                     report += 'fra:{0:4.1f}   '.format(a['p'][3])
-                report += 'bg:{0:6.3f}\n'.format(a['p'][3])
+                report += 'bg:{0:6.3f}'.format(a['p'][3])
             else:
                 a['p'] = False
 
@@ -659,8 +659,8 @@ class irixs:
                 savefile = '{0}/{1}_{2:05d}_b{3}.txt'.format(
                         self.savedir_con, self.exp, n, bins)
             np.savetxt(savefile, np.array([x, y, e]).T, header=header)
-        if fit:
-            print(report)
+        
+        print(report)
 
 
 
@@ -668,7 +668,7 @@ class irixs:
              norm=False, ysca=None, ystp=0, yoff=None, xoff=None,
              fit=False, stderr=False, cmap=None, fmt='-', lw=1,
              vline=[0], leg=True, title=None, savefig=True,
-             plot_det=False):
+             plot_det=False, xlim=None, ylim=None):
 
         if not isinstance(numors,(list,tuple,range)):
             numors = [numors]
@@ -757,6 +757,8 @@ class irixs:
                 label += ' {0}'.format(labels[i])
             elif step == 'T':
                 label += ' {:.0f}K'.format(a[step])
+            elif step == 'rixs_th':
+                label += ' th: {:.2f}'.format(a[step])
             elif step != 'numor':
                 label += ' {}: {:.3f}'.format(step, a[step])
 
@@ -794,6 +796,10 @@ class irixs:
                 ax.axvline(v, color='k', lw=0.5)
         if title:
             ax.set_title(title)
+        if xlim:
+            ax.set_xlim(*xlim)
+        if ylim:
+            ax.set_ylim(*ylim)
         if savefig:
             if not isinstance(savefig, str):
                 sc = '_'.join(str(n) for n in numors)
