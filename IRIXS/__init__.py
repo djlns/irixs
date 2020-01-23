@@ -768,7 +768,11 @@ class irixs:
             ax.set_xlabel(a['auto'])
 
         if leg is not False:
-            ax.legend(loc=leg, handlelength=1.5, labelspacing=0.3, handletextpad=0.5)
+            if len(runs) > 20:
+                ncol = 2
+            else:
+                ncol = 1
+            ax.legend(loc=leg, handlelength=1.5, labelspacing=0.3, handletextpad=0.5, ncol=ncol)
         if vline is not False:
             if not isinstance(vline,(tuple,list)):
                 vline = [vline]
