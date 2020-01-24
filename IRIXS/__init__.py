@@ -17,15 +17,14 @@ except ImportError:
 #### Default Variables ########################################################
 
 defs = {
-# directories
 'datdir': '/gpfs/current/raw',
+
 'savedir_dat': './dat',  #reduced routine savedir
 'savedir_det': './det',  #detector routine savedir
 'savedir_fig': './fig',  #plot routine savedir
 'savedir_raw': './raw',  #local storarge of raw data, False to disable
 'savedir_con': './binned',  #binned data
 
-# other
 'fit_pv': True,  #pseudovoight or lorentzian
 }
 
@@ -578,7 +577,7 @@ class irixs:
             if len(ns) > 1:
                 n = ns[0]
                 a = self.runs[n]
-            a['label'] = '+'.join([str(ni) for ni in ns])
+            a['label'] = ','.join([str(ni) for ni in ns])
 
             x, y = np.array(x), np.array(y)
             y = y[np.argsort(x)]
@@ -641,8 +640,7 @@ class irixs:
                     self.savedir_con, self.exp, n, bins)
             np.savetxt(savefile, np.array([x, y, e]).T,
                         header=header+'\n{0:>24}{1:>24}{2:>24}'.format(a['auto'],'counts','stderr'))
-        if fit:
-            print(report)
+        print(report)
 
 
     def plot(self, numors, ax=None, step='numor', labels=None, sort=False, rev=False,
