@@ -403,15 +403,16 @@ class irixs:
             a['xd'], a['yd'] = x, y
 
             header = 'experiment: {0}\n'.format(self.exp)
-            header+= 'run_no: {0}\n'.format(numor)
+            header+= 'run: {0}\n'.format(numor)
             header+= 'command: {0}\n'.format(a['command'])
-            header+= 'EI_instrument: {0}\n'.format(a["EI"])
-            header+= 'rixs_th: {0}\n'.format(a["rixs_th"])
-            header+= 'rixs_chi: {0}\n'.format(a["rixs_chi"])
+            header+= 'dcm_ener: {0}\n'.format(a["dcm_ener"])
+            header+= 'rixs_ener: {0}\n'.format(a["rixs_ener"])
             if 't_coldhead' in a:
                 header+= 't_coldhead: {0}\n'.format(a["t_coldhead"])
             if 't_sample' in a:
                 header+= 't_sample: {0}\n'.format(a["t_sample"])
+            header+= 'rixs_th: {0}\n'.format(a["rixs_th"])
+            header+= 'rixs_chi: {0}\n'.format(a["rixs_chi"])
             header+= 'threshold: {0}\n'.format(self.threshold)
             header+= 'cutoff: {0}\n'.format(self.cutoff)
             header+= 'detector_factor: {0}\n'.format(self.detfac)
@@ -574,9 +575,8 @@ class irixs:
             if not x:
                 continue
 
-            if len(ns) > 1:
-                n = ns[0]
-                a = self.runs[n]
+            n = ns[0]
+            a = self.runs[n]
             a['label'] = ','.join([str(ni) for ni in ns])
 
             x, y = np.array(x), np.array(y)
@@ -589,8 +589,8 @@ class irixs:
             x -= en
 
             header = 'experiment: {0}\n'.format(self.exp)
-            header+= 'run: {0}\n'.format(ns)
-            header+= 'command: {0}\n\n'.format(a['command'])
+            header+= 'run: {0}\n'.format(n)
+            header+= 'command: {0}\n'.format(a['command'])
             header+= 'dcm_ener: {0}\n'.format(a["dcm_ener"])
             header+= 'rixs_ener: {0}\n'.format(a["rixs_ener"])
             if 't_coldhead' in a:
@@ -598,7 +598,7 @@ class irixs:
             if 't_sample' in a:
                 header+= 't_sample: {0}\n'.format(a["t_sample"])
             header+= 'rixs_th: {0}\n'.format(a["rixs_th"])
-            header+= 'rixs_chi: {0}\n\n'.format(a["rixs_chi"])
+            header+= 'rixs_chi: {0}\n'.format(a["rixs_chi"])
             header+= 'threshold: {0}\n'.format(self.threshold)
             header+= 'cutoff: {0}\n'.format(self.cutoff)
             header+= 'detector_factor: {0}\n'.format(self.detfac)
@@ -632,14 +632,14 @@ class irixs:
                 a['p'] = False
 
             header+= 'bin_size: {0}\n'.format(bins)
+            header+= '\n{0:>24}{1:>24}{2:>24}'.format(a['auto'],'counts','stderr')
             if bins < 5:
                 savefile = '{0}/{1}_{2:05d}_b{3:.1f}meV.txt'.format(
                     self.savedir_con, self.exp, n, bins*1000)
             else:
                 savefile = '{0}/{1}_{2:05d}_b{3}.txt'.format(
                     self.savedir_con, self.exp, n, bins)
-            np.savetxt(savefile, np.array([x, y, e]).T,
-                        header=header+'\n{0:>24}{1:>24}{2:>24}'.format(a['auto'],'counts','stderr'))
+            np.savetxt(savefile, np.array([x, y, e]).T, header=header)
         print(report)
 
 
