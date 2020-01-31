@@ -163,11 +163,13 @@ def load_fio(run, exp, datdir):
                     if line.startswith('! Acquisition ended'):
                         complete = True
     if head and data:
+        
         data = [x for x in data if x]
         data = np.array(data)
         pnts = data.shape[0]
         data = data.view(dtype=[(n, float) for n in head])
         data = data.reshape(len(data))
+
         a['data'] = data
         a['auto'] = head[0]
         a['pnts'] = pnts
@@ -176,14 +178,28 @@ def load_fio(run, exp, datdir):
         else:
             a['EF'] = a['data'][head[0]]
         a['EI'] = a['dcm_ener']
-        a['command'] = runtype
-        a['numor'] = run
-        a['complete'] = complete
+        a['th'] = a['rixs_th']
+        a['chi'] = a['rixs_chi']
+
+        if 'qh' in head:
+            a['qh'] = np.average(data['qh'])
+            a['qk'] = np.average(data['qk'])
+            a['ql'] = np.average(data['ql'])
+        else:
+            a['qh'], a['qk'], a['ql'] = 0.0, 0.0, 0.0
+
         if 't_coldhead' in head:
             a['t_coldhead'] = np.round(np.average(data['t_coldhead']))
         if 't_sample' in head:
             a['t_sample'] = np.round(np.average(data['t_sample']))
             a['T'] = a['t_sample']
+        else:
+            a['T'] = 0.0
+
+        a['command'] = runtype
+        a['numor'] = run
+        a['complete'] = complete
+
         return a
 
 
@@ -271,7 +287,7 @@ class irixs:
         self.corr_shift = False  # distortion correction
 
 
-    def load(self, numors):
+    def load(self, numors, tiff=True):
 
         if not isinstance(numors, (list, tuple, range)):
             numors = [numors]
@@ -298,6 +314,9 @@ class irixs:
             else:
                 a = load_fio(numor, self.exp, self.datdir)
             self.runs[numor] = a
+
+        if not tiff:
+            return
 
         for numor in numors:
             
@@ -334,6 +353,39 @@ class irixs:
                 a['y0'] = self.y0[numor]
             else:
                 a['y0'] = self.y0
+
+
+    def logbook(self, numors, extras=['th']):
+        if not isinstance(numors,(list,tuple,range)):
+            numors = [numors]
+        for numor in numors:
+            out = ''
+            self.load(numor, False)
+            a = self.runs[numor]
+            if a is None:
+                continue
+            try:
+                command = a['command'].split()
+                scantype, motor = command[:2]
+                m1, m2, pnt, t = [float(c) for c in command[2:]]
+                qh = np.round(a['qh'],2)+0
+                qk = np.round(a['qk'],2)+0
+                ql = np.round(a['ql'],2)+0
+            except:
+                pass
+            out += '#{0:<4}{1:>10}'.format(numor,motor)
+            out += ' {0} -> {1}  {2:.0f}pnt {3:.0f}s  '.format(m1, m2, pnt, t)
+            out += '{0:6.1f}eV'.format(a["dcm_ener"])
+            if a["dcm_ener"] != a["rixs_ener"]:
+                out += '* '
+            else:
+                out += '  '
+            out += '{0:3.0f}K  '.format(a['T'])
+            out += '({0: 3.1f} {1: 3.1f} {2: 3.1f})  '.format(qh, qk, ql)
+            for ex in extras:
+                out += '{0}:{1:6.2f}  '.format(ex,a[ex])
+            print(out)
+        print()
 
 
     def detector(self, numors, com=False, fit=False,
