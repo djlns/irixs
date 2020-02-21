@@ -355,8 +355,10 @@ class irixs:
                 a['y0'] = self.y0
 
 
-    def logbook(self, numors, extras=['th']):
-        if not isinstance(numors,(list,tuple,range)):
+    def logbook(self, numors=None, hkl=False, extras=['th']):
+        if numors is None:
+            numors = self.runs.keys()
+        elif not isinstance(numors,(list,tuple,range)):
             numors = [numors]
         for numor in numors:
             out = ''
@@ -372,16 +374,21 @@ class irixs:
                 qk = np.round(a['qk'],2)+0
                 ql = np.round(a['ql'],2)+0
             except:
-                pass
-            out += '#{0:<4}{1:>10} '.format(numor,motor)
-            out += '{0:+4.2f} -> {1:+4.2f}  {2:.0f}pnt {3:.0f}s  '.format(m1, m2, pnt, t)
-            out += '{0:6.1f}eV'.format(a["dcm_ener"])
+                continue
+            out += '#{0:<4}{1:>13}  '.format(numor,motor)
+            if motor in ['rixs_ener']:
+                out += '{0:+4.2f} > {1:+4.2f}'.format(m1, m2)
+            else:
+                out += ' {0:<12}'.format('')
+            out += ' {0:3.0f}pnt {1:4.0f}s  '.format(pnt, t)
+            out += '{0:7.1f}eV'.format(a["dcm_ener"])
             if a["dcm_ener"] != a["rixs_ener"]:
                 out += '* '
             else:
                 out += '  '
             out += '{0:3.0f}K  '.format(a['T'])
-            out += '({0: 3.1f} {1: 3.1f} {2: 3.1f})  '.format(qh, qk, ql)
+            if hkl:
+                out += '({0: 3.1f} {1: 3.1f} {2: 3.1f})  '.format(qh, qk, ql)
             for ex in extras:
                 out += '{0}:{1:6.2f}  '.format(ex,a[ex])
             print(out)
