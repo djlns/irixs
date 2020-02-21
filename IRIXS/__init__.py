@@ -373,8 +373,8 @@ class irixs:
                 ql = np.round(a['ql'],2)+0
             except:
                 pass
-            out += '#{0:<4}{1:>10}'.format(numor,motor)
-            out += ' {0} -> {1}  {2:.0f}pnt {3:.0f}s  '.format(m1, m2, pnt, t)
+            out += '#{0:<4}{1:>10} '.format(numor,motor)
+            out += '{0} -> {1}  {2:.0f}pnt {3:.0f}s  '.format(m1, m2, pnt, t)
             out += '{0:6.1f}eV'.format(a["dcm_ener"])
             if a["dcm_ener"] != a["rixs_ener"]:
                 out += '* '
@@ -697,7 +697,7 @@ class irixs:
 
     def plot(self, numors, ax=None, step='numor', labels=None, sort=False, rev=False,
              norm=False, ysca=None, ystp=0, yoff=None, xoff=None,
-             fit=False, stderr=False, cmap=None, fmt='-', lw=1,
+             show_fit=False, stderr=False, cmap=None, fmt='-', lw=1,
              vline=[0], leg=0, title=None, savefig=True,
              plot_det=False, xlim=None, ylim=None):
 
@@ -796,7 +796,7 @@ class irixs:
             if stderr and not plot_det and not norm:
                 ax.errorbar(x,y+i*ystp,e,fmt='none',color=l.get_color(),lw=lw)
 
-            if fit and p is not None:
+            if show_fit and p is not False:
                 if defs['fit_pv']:
                     amp, sig, cen, fra, bgnd = p
                 else:
