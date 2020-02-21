@@ -374,7 +374,7 @@ class irixs:
             except:
                 pass
             out += '#{0:<4}{1:>10} '.format(numor,motor)
-            out += '{0} -> {1}  {2:.0f}pnt {3:.0f}s  '.format(m1, m2, pnt, t)
+            out += '{0:+4.2f} -> {1:+4.2f}  {2:.0f}pnt {3:.0f}s  '.format(m1, m2, pnt, t)
             out += '{0:6.1f}eV'.format(a["dcm_ener"])
             if a["dcm_ener"] != a["rixs_ener"]:
                 out += '* '
