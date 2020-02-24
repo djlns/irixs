@@ -623,7 +623,8 @@ class irixs:
                 except KeyError:
                     self.load(n)
                 a = self.runs[n]
-                if a is None or a['img'] is None or a['auto'] not in ['rixs_ener', 'dcm_ener', 'exp_dmy01']:
+                if ( a is None or 'img' not in a or a['img'] is None
+                     or a['auto'] not in ['rixs_ener', 'dcm_ener', 'exp_dmy01'] ):
                     continue
                 else:
                     ns.append(n)
