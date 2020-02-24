@@ -2,6 +2,7 @@ import os, sys, shutil
 import numpy as np
 import matplotlib.pyplot as plt
 import warnings
+import scipy.ndimage
 
 from numpy import pi,sin,cos,tan,arccos,arcsin,arctan,sqrt,log,radians,degrees
 from scipy.optimize import curve_fit
@@ -28,7 +29,6 @@ defs = {
 'fit_pv': True,  #pseudovoight or lorentzian
 }
 
-PHOTON_FACTOR = 788
 PIX_EN_CONV = 13.5E-6
 
 #### Matplotlib Settings ######################################################
@@ -66,7 +66,7 @@ def pix_to_E(energy, dspacing):
     return dE
 
 
-def binning(x, y, n):
+def binning(x, y, n, photon_countinging=False):
     e = np.sqrt(y)
     if isinstance(n,int): #strides
         xbin = int(len(x)/n)
@@ -74,10 +74,13 @@ def binning(x, y, n):
         xbin = np.arange(min(x), max(x), n)
     yi,xi = np.histogram(x, bins=xbin, weights=y)
     ei,_ = np.histogram(x, bins=xbin, weights=e**2)
-    count,_ = np.histogram(x, bins=xbin)
-    with np.errstate(divide='ignore', invalid='ignore'):
-        yi = yi / count
-        ei = np.sqrt(ei) / count
+    
+    if not photon_countinging:
+        count,_ = np.histogram(x, bins=xbin)
+        with np.errstate(divide='ignore', invalid='ignore'):
+            yi = yi / count
+            ei = np.sqrt(ei) / count
+    
     xi = (xi[1:]+xi[:-1])/2
     return xi, yi, ei
 
@@ -234,7 +237,8 @@ class irixs:
     def __init__(self, exp,
                  y0=None, roix=[0,2048], roiy=[0,2048],
                  threshold=1010, cutoff=1800, detfac=935,
-                 E0=None, analyser=None, datdir=None):
+                 photon_factor = 750, E0=None, analyser=None, datdir=None,
+                 photon_event_threshold=400, photon_max_events=0):
         '''
         exp -- experiment title / data filename prefix
         E0 -- elastic energy: typically use None to extract from .fio file
@@ -245,6 +249,9 @@ class irixs:
         cutoff -- upper limit to kill cosmic rays (use histogram to refine)
         detfac -- andor detector factor (0 if andor bgnd sub is enabled, 935 otherwise)
         analyser -- analyser crystal lattice and reflection
+        photon_factor -- conversion between detector intensitiy and photon count (should be = 788)
+        photon_event_threshold -- threshold intensity for a contigous detector event
+        photon_max_events -- maximum multiple events to correct for (0 to disable correction)
         '''
 
         self.exp = exp
@@ -257,6 +264,9 @@ class irixs:
         self.threshold = threshold
         self.cutoff = cutoff
         self.detfac = detfac
+        self.photon_factor = photon_factor
+        self.event_min = photon_event_threshold
+        self.max_events = photon_max_events
 
         self.to = self.threshold - self.detfac
         self.co = self.cutoff - self.detfac
@@ -589,12 +599,14 @@ class irixs:
             print(report)
 
 
-    def condition(self, bins, numors, fit=False, use_distortion_corr=True):
+    def condition(self, bins, numors, fit=False, photon_counting=False, use_distortion_corr=True):
 
         if isinstance(numors, int):
             numors = [numors]
 
         xinit = np.arange(self.roiy[0], self.roiy[1])
+        if photon_counting:
+            xinit = np.tile(xinit,(self.roix[1]-self.roix[0],1)).T
         report = ''
 
         for numor in numors:
@@ -625,12 +637,20 @@ class irixs:
                             img[:,c1:c2] = np.roll(img[:,c1:c2],sh,axis=0)
 
                     img  = img[self.roiy[0]:self.roiy[1]]
-
-                    yi = np.sum(img, axis=1)
-                    xi = (xinit - a['y0']) * pix_to_E(ef, self.dspacing) + ef
+                    if photon_counting:
+                        lbl,nlbl = scipy.ndimage.label(img)
+                        yi = scipy.ndimage.labeled_comprehension(img,lbl,range(1,nlbl+1),
+                                                                 np.sum, float, 0)
+                        xi = scipy.ndimage.labeled_comprehension(xinit,lbl,range(1,nlbl+1),
+                                                                 np.max, float, 0)
+                        xi = (xi - a['y0']) * pix_to_E(ef, self.dspacing) + ef
+                        xi = xi[yi>self.event_min]
+                        yi = yi[yi>self.event_min]
+                    else:
+                        yi = np.sum(img, axis=1)
+                        xi = (xinit - a['y0']) * pix_to_E(ef, self.dspacing) + ef
                     x.extend(xi)
                     y.extend(yi)
-            
             if not x:
                 continue
 
@@ -670,9 +690,23 @@ class irixs:
             np.savetxt(savefile, np.array([x, y]).T,
                         header=header+'\n{0:>24}{1:>24}'.format(a['auto'],'counts'))
 
-            y = y / PHOTON_FACTOR
+            y = y / self.photon_factor
+            if photon_counting and self.max_events:
+                x = np.delete(x,np.where(y>self.max_events+0.5))
+                y = np.delete(y,np.where(y>self.max_events+0.5))
+                for i in range(self.max_events,1,-1):
+                    cnts = np.where(np.logical_and(y>=i-0.5,y<i+0.5))
+                    y[cnts] /= i
+                    if i > 2:
+                        y = np.append(y,np.tile(y[cnts],i-1))
+                        x = np.append(x,np.tile(x[cnts],i-1))
+                    else:
+                        y = np.append(y,y[cnts])
+                        x = np.append(x,x[cnts])
+                y = y[np.argsort(x)]
+                x = np.sort(x)
             if bins:
-                x, y, e = binning(x, y, bins)
+                x, y, e = binning(x, y, bins, photon_counting)
             else:
                 e = np.sqrt(y)
             y[~np.isfinite(y)] = 0
@@ -848,7 +882,8 @@ class irixs:
             plt.savefig('{}/{}.pdf'.format(self.savedir_fig, savefig), dpi=300)
 
 
-    def check_run(self, numor, hist=False, no=0, vmin=0, vmax=10):
+    def check_run(self, numor, hist=False, no=0, vmin=0, vmax=10,
+                    interp='hanning', photon_counting=False):
         
         '''Step through each detector image of a run.
         run -- run number
@@ -856,6 +891,7 @@ class irixs:
         hist -- plot histogram rather than detector map
         vmin -- colourmap minimum
         vmax -- colourmap maximum
+        interp -- interpolation mode for image plot ('nearest' to disable)
         '''
 
         self.load(numor)
@@ -869,14 +905,20 @@ class irixs:
 
         imdat = a['img'][no]
         imgdim = imdat.shape
-        cmap = plt.get_cmap('bone_r')
 
         if hist:
             b, c = np.histogram(imdat, bins=range(self.to, self.co, 1))
             i['ax'].bar(c[:-1], b)
-        else:
+        elif photon_counting:
+            imdat,_ = scipy.ndimage.label(imdat)
+            cmap = plt.get_cmap('prism')
+            cmap.set_under('k')
             i['im'] = i['ax'].imshow(imdat, origin='lower', cmap=cmap,
-                                 vmin=vmin, vmax=vmax, interpolation='hanning')
+                                        interpolation='nearest',vmin=0.1)
+        else:
+            cmap = plt.get_cmap('bone_r')
+            i['im'] = i['ax'].imshow(imdat, origin='lower', cmap=cmap,
+                                 vmin=vmin, vmax=vmax, interpolation=interp)
         i['ax'].set_title('#{} no {}'.format(numor, i['idx']))
 
         def do_plot(i):
@@ -890,6 +932,8 @@ class irixs:
                 i['ax'].cla()
                 i['ax'].bar(c[:-1], b)
             else:
+                if photon_counting:
+                    imdat,_ = scipy.ndimage.label(imdat)
                 i['im'].set_data(imdat)
             i['ax'].set_title('#{} no {}'.format(numor, i['idx']))
             plt.draw()
