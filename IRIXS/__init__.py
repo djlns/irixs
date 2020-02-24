@@ -141,7 +141,7 @@ def load_fio(run, exp, datdir):
         for line in f:
             l = line.strip()
             if l.startswith('%c'):
-                runtype = next(f)[:-1]
+                command = next(f)[:-1].split()
             elif line.startswith('%p'):
                 break
         for line in f:
@@ -199,7 +199,8 @@ def load_fio(run, exp, datdir):
         else:
             a['T'] = 0.0
 
-        a['command'] = runtype
+        a['command'] = command
+        a['time'] = float(command[-1])
         a['numor'] = run
         a['complete'] = complete
 
@@ -377,7 +378,7 @@ class irixs:
             if a is None:
                 continue
             try:
-                command = a['command'].split()
+                command = a['command']
                 scantype, motor = command[:2]
                 m1, m2, pnt, t = [float(c) for c in command[2:]]
                 qh = np.round(a['qh'],2)+0
@@ -789,6 +790,8 @@ class irixs:
                     x+=xoff
 
             if norm:
+                if norm == 'time':
+                    maxy = a['time']
                 if isinstance(norm,(tuple,list)):
                     maxy = np.mean(y[(x > min(norm)) & (x < max(norm))])
                 else:
@@ -853,7 +856,14 @@ class irixs:
                             transform=ax.transAxes)
 
         ax.minorticks_on()
-        ax.set_ylabel('Intensity')
+        
+        if norm == 'time':
+            ax.set_ylabel('Intensity (per second)')
+        elif norm:
+            ax.set_ylabel('Intensity (normalised)')
+        else:
+            ax.set_ylabel('Intensity')
+        
         if 'x' in a:
             ax.set_xlabel('Energy Transfer (eV)')
         else:
@@ -865,17 +875,20 @@ class irixs:
             else:
                 ncol = 1
             ax.legend(loc=leg, handlelength=1.5, labelspacing=0.3, handletextpad=0.5, ncol=ncol)
+        
         if vline is not False:
             if not isinstance(vline,(tuple,list)):
                 vline = [vline]
             for v in vline:
                 ax.axvline(v, color='k', lw=0.5)
+        
         if title:
             ax.set_title(title)
         if xlim:
             ax.set_xlim(*xlim)
         if ylim:
             ax.set_ylim(*ylim)
+        
         if savefig:
             if not isinstance(savefig, str):
                 sc = '_'.join(str(n) for n in numors)
