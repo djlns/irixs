@@ -9,6 +9,7 @@ from scipy.optimize import curve_fit
 from matplotlib.patches import Rectangle
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from copy import deepcopy
+from glob import iglob
 
 try:
     from tifffile import imread
@@ -142,6 +143,7 @@ def load_fio(run, exp, datdir):
             l = line.strip()
             if l.startswith('%c'):
                 command = next(f)[:-1].split()
+                _,date = next(f).split(' started at ',maxsplit=1)
             elif line.startswith('%p'):
                 break
         for line in f:
@@ -200,6 +202,7 @@ def load_fio(run, exp, datdir):
             a['T'] = 0.0
 
         a['command'] = command
+        a['date'] = date[:-9].strip()
         a['time'] = float(command[-1])
         a['numor'] = run
         a['complete'] = complete
@@ -366,11 +369,18 @@ class irixs:
                 a['y0'] = self.y0
 
 
-    def logbook(self, numors=None, hkl=False, extras=['th']):
+    def logbook(self, numors=None, hkl=False, date=False, extras=['th']):
         if numors is None:
             numors = self.runs.keys()
         elif not isinstance(numors,(list,tuple,range)):
-            numors = [numors]
+            latest = max(iglob(os.path.join(self.datdir,'*.fio')),
+                         key=os.path.getctime)
+            try:
+                latest = latest[:-4].split('_')[-1]
+                numors = range(numors,int(latest))
+            except ValueError:
+                return
+
         for numor in numors:
             out = ''
             self.load(numor, False)
@@ -402,6 +412,8 @@ class irixs:
                 out += '({0: 3.1f} {1: 3.1f} {2: 3.1f})  '.format(qh, qk, ql)
             for ex in extras:
                 out += '{0}:{1:6.2f}  '.format(ex,a[ex])
+            if date:
+                out += ' ' + a['date']
             print(out)
         print()
 
@@ -624,7 +636,9 @@ class irixs:
                 except KeyError:
                     self.load(n)
                 a = self.runs[n]
-                if ( a is None or 'img' not in a or a['img'] is None
+                if 'img' not in a:
+                    self.load(n)
+                if ( a is None or a['img'] is None
                      or a['auto'] not in ['rixs_ener', 'dcm_ener', 'exp_dmy01'] ):
                     continue
                 else:
