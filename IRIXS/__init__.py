@@ -186,10 +186,10 @@ def load_fio(run, exp, datdir):
         a['th'] = a['rixs_th']
         a['chi'] = a['rixs_chi']
 
-        if 'qh' in head:
-            a['qh'] = np.average(data['qh'])
-            a['qk'] = np.average(data['qk'])
-            a['ql'] = np.average(data['ql'])
+        if 'q_h' in head:
+            a['qh'] = np.average(data['q_h'])
+            a['qk'] = np.average(data['q_k'])
+            a['ql'] = np.average(data['q_l'])
         else:
             a['qh'], a['qk'], a['ql'] = 0.0, 0.0, 0.0
 
@@ -244,6 +244,7 @@ class irixs:
                  photon_factor = 750, E0=None, analyser=None, datdir=None,
                  photon_event_threshold=400, photon_max_events=0):
         '''
+        datdir -- define datdir to work locally
         exp -- experiment title / data filename prefix
         E0 -- elastic energy: typically use None to extract from .fio file
         y0 -- corresponding vertical pixel position on detector
@@ -377,7 +378,7 @@ class irixs:
                          key=os.path.getctime)
             try:
                 latest = latest[:-4].split('_')[-1]
-                numors = range(numors,int(latest))
+                numors = range(numors,int(latest)+1)
             except ValueError:
                 return
 
@@ -391,11 +392,11 @@ class irixs:
                 command = a['command']
                 scantype, motor = command[:2]
                 m1, m2, pnt, t = [float(c) for c in command[2:]]
-                qh = np.round(a['qh'],2)+0
-                qk = np.round(a['qk'],2)+0
-                ql = np.round(a['ql'],2)+0
             except:
                 continue
+            qh = np.round(a['qh'],2)+0
+            qk = np.round(a['qk'],2)+0
+            ql = np.round(a['ql'],2)+0
             out += '#{0:<4}{1:>13}  '.format(numor,motor)
             if motor in ['rixs_ener']:
                 out += '{0:+4.2f} > {1:+4.2f}'.format(m1, m2)
@@ -636,10 +637,11 @@ class irixs:
                 except KeyError:
                     self.load(n)
                 a = self.runs[n]
+                if a is None:
+                    continue
                 if 'img' not in a:
                     self.load(n)
-                if ( a is None or a['img'] is None
-                     or a['auto'] not in ['rixs_ener', 'dcm_ener', 'exp_dmy01'] ):
+                if a['img'] is None or a['auto'] not in ['rixs_ener','dcm_ener','exp_dmy01']:
                     continue
                 else:
                     ns.append(n)
@@ -655,13 +657,16 @@ class irixs:
                     img  = img[self.roiy[0]:self.roiy[1]]
                     if photon_counting:
                         lbl,nlbl = scipy.ndimage.label(img)
-                        yi = scipy.ndimage.labeled_comprehension(img,lbl,range(1,nlbl+1),
+                        try:
+                            yi = scipy.ndimage.labeled_comprehension(img,lbl,range(1,nlbl+1),
                                                                  np.sum, float, 0)
-                        xi = scipy.ndimage.labeled_comprehension(xinit,lbl,range(1,nlbl+1),
-                                                                 np.max, float, 0)
-                        xi = (xi - a['y0']) * pix_to_E(ef, self.dspacing) + ef
-                        xi = xi[yi>self.event_min]
-                        yi = yi[yi>self.event_min]
+                            xi = scipy.ndimage.labeled_comprehension(xinit,lbl,range(1,nlbl+1),
+                                                                 np.mean, float, 0)
+                            xi = (xi - a['y0']) * pix_to_E(ef, self.dspacing) + ef
+                            xi = xi[yi>self.event_min]
+                            yi = yi[yi>self.event_min]
+                        except ValueError:
+                            pass
                     else:
                         yi = np.sum(img, axis=1)
                         xi = (xinit - a['y0']) * pix_to_E(ef, self.dspacing) + ef
@@ -754,7 +759,7 @@ class irixs:
 
     def plot(self, numors, ax=None, step='numor', labels=None, sort=False, rev=False,
              norm=False, ysca=None, ystp=0, yoff=None, xoff=None,
-             show_fit=False, stderr=False, cmap=None, fmt='-', lw=1,
+             show_fit=True, stderr=False, cmap=None, fmt='-', lw=1,
              vline=[0], leg=0, title=None, savefig=True,
              plot_det=False, xlim=None, ylim=None):
 
@@ -920,6 +925,7 @@ class irixs:
         vmin -- colourmap minimum
         vmax -- colourmap maximum
         interp -- interpolation mode for image plot ('nearest' to disable)
+        photon_counting -- check photon counting algorithm
         '''
 
         self.load(numor)
@@ -939,7 +945,10 @@ class irixs:
             i['ax'].bar(c[:-1], b)
         elif photon_counting:
             imdat,_ = scipy.ndimage.label(imdat)
-            cmap = plt.get_cmap('prism')
+            #cmap = plt.get_cmap('prism')
+            vals = np.linspace(0,1,256)
+            np.random.shuffle(vals)
+            cmap = plt.cm.colors.ListedColormap(plt.get_cmap('jet')(vals))
             cmap.set_under('k')
             i['im'] = i['ax'].imshow(imdat, origin='lower', cmap=cmap,
                                         interpolation='nearest',vmin=0.1)
