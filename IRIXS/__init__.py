@@ -67,7 +67,7 @@ def pix_to_E(energy, dspacing):
     return dE
 
 
-def binning(x, y, n, photon_countinging=False):
+def binning(x, y, n, photon_counting=False):
     e = np.sqrt(y)
     if isinstance(n,int): #strides
         xbin = int(len(x)/n)
@@ -76,7 +76,7 @@ def binning(x, y, n, photon_countinging=False):
     yi,xi = np.histogram(x, bins=xbin, weights=y)
     ei,_ = np.histogram(x, bins=xbin, weights=e**2)
     
-    if not photon_countinging:
+    if not photon_counting:
         count,_ = np.histogram(x, bins=xbin)
         with np.errstate(divide='ignore', invalid='ignore'):
             yi = yi / count
@@ -498,20 +498,14 @@ class irixs:
 
             header = 'experiment: {0}\n'.format(self.exp)
             header+= 'run: {0}\n'.format(numor)
-            header+= 'command: {0}\n'.format(a['command'])
+            header+= 'command: {0}\n'.format(' '.join(a['command']))
             header+= 'dcm_ener: {0}\n'.format(a["dcm_ener"])
             header+= 'rixs_ener: {0}\n'.format(a["rixs_ener"])
-            if 't_coldhead' in a:
-                header+= 't_coldhead: {0}\n'.format(a["t_coldhead"])
-            if 't_sample' in a:
-                header+= 't_sample: {0}\n'.format(a["t_sample"])
-            header+= 'rixs_th: {0}\n'.format(a["rixs_th"])
-            header+= 'rixs_chi: {0}\n'.format(a["rixs_chi"])
-            header+= 'threshold: {0}\n'.format(self.threshold)
-            header+= 'cutoff: {0}\n'.format(self.cutoff)
-            header+= 'detector_factor: {0}\n'.format(self.detfac)
-            header+= 'roi_x: {0}\n'.format(self.roix)
-            header+= 'roi_y: {0}\n\n'.format(self.roiy)
+            header+= 'det_threshold: {0}\n'.format(self.threshold)
+            header+= 'det_cutoff: {0}\n'.format(self.cutoff)
+            header+= 'det_factor: {0}\n'.format(self.detfac)
+            header+= 'det_roix: {0}\n'.format(self.roix)
+            header+= 'det_roiy: {0}\n\n'.format(self.roiy)
 
             if oneshot:
                 header+= '{0:>24}{1:>24}'.format('y-pixel','counts')
@@ -701,7 +695,7 @@ class irixs:
 
             header = 'experiment: {0}\n'.format(self.exp)
             header+= 'run: {0}\n'.format(n)
-            header+= 'command: {0}\n'.format(a['command'])
+            header+= 'command: {0}\n'.format(' '.join(a['command']))
             header+= 'dcm_ener: {0}\n'.format(a["dcm_ener"])
             header+= 'rixs_ener: {0}\n'.format(a["rixs_ener"])
             if 't_coldhead' in a:
@@ -710,11 +704,12 @@ class irixs:
                 header+= 't_sample: {0}\n'.format(a["t_sample"])
             header+= 'rixs_th: {0}\n'.format(a["rixs_th"])
             header+= 'rixs_chi: {0}\n'.format(a["rixs_chi"])
-            header+= 'threshold: {0}\n'.format(self.threshold)
-            header+= 'cutoff: {0}\n'.format(self.cutoff)
-            header+= 'detector_factor: {0}\n'.format(self.detfac)
-            header+= 'roi_x: {0}\n'.format(self.roix)
-            header+= 'roi_y: {0}\n'.format(self.roiy)
+            header+= 'q_hkl: {0:.4f} {1:.4f} {2:.4f}\n'.format(a["qh"], a["qk"], a["ql"])
+            header+= 'det_threshold: {0}\n'.format(self.threshold)
+            header+= 'det_cutoff: {0}\n'.format(self.cutoff)
+            header+= 'det_factor: {0}\n'.format(self.detfac)
+            header+= 'det_roix: {0}\n'.format(self.roix)
+            header+= 'det_roiy: {0}\n'.format(self.roiy)
             header+= 'E0_ypixel: {0}\n'.format(a['y0'])
             header+= 'E0_offset: {0}\n'.format(en)
 
