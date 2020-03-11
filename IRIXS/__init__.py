@@ -370,12 +370,18 @@ class irixs:
                 a['y0'] = self.y0
 
 
-    def logbook(self, numors=None, hkl=False, date=False, extras=['th']):
+    def logbook(self, numors=None, extras=['th'],
+                hkl=False, date=False, only_rixs=True):
         if numors is None:
             numors = self.runs.keys()
         elif not isinstance(numors,(list,tuple,range)):
-            latest = max(iglob(os.path.join(self.datdir,'*.fio')),
-                         key=os.path.getctime)
+            try:
+                latest = max(iglob(os.path.join(self.datdir,'*.fio')),
+                             key=os.path.getctime)
+            except ValueError:
+                print('Using Local Directory')
+                latest = max(iglob(os.path.join(self.localdir,'*.fio')),
+                             key=os.path.getctime)
             try:
                 latest = latest[:-4].split('_')[-1]
                 numors = range(numors,int(latest)+1)
@@ -394,13 +400,12 @@ class irixs:
                 m1, m2, pnt, t = [float(c) for c in command[2:]]
             except:
                 continue
-            qh = np.round(a['qh'],2)+0
-            qk = np.round(a['qk'],2)+0
-            ql = np.round(a['ql'],2)+0
             out += '#{0:<4}{1:>13}  '.format(numor,motor)
             if motor in ['rixs_ener']:
                 out += '{0:+4.2f} > {1:+4.2f}'.format(m1, m2)
             else:
+                if only_rixs:
+                    continue
                 out += ' {0:<12}'.format('')
             out += ' {0:3.0f}pnt {1:4.0f}s  '.format(pnt, t)
             out += '{0:7.1f}eV'.format(a["dcm_ener"])
@@ -410,7 +415,13 @@ class irixs:
                 out += '  '
             out += '{0:3.0f}K  '.format(a['T'])
             if hkl:
-                out += '({0: 3.1f} {1: 3.1f} {2: 3.1f})  '.format(qh, qk, ql)
+                qh = np.round(a['qh'],2)+0
+                qk = np.round(a['qk'],2)+0
+                ql = np.round(a['ql'],2)+0
+                if not qh and not qk and not ql:
+                    out += ' '*18
+                else:
+                    out += '({0: 3.1f} {1: 3.1f} {2:4.1f})  '.format(qh, qk, ql)
             for ex in extras:
                 out += '{0}:{1:6.2f}  '.format(ex,a[ex])
             if date:
@@ -853,6 +864,8 @@ class irixs:
                 label += ' {:.0f}K'.format(a[step])
             elif step == 'rixs_th':
                 label += ' th: {:.2f}'.format(a[step])
+            elif step == 'hkl':
+                label += ' {:.2f} {:.2f} {:.2f}'.format(a['qh'],a['qk'],a['ql'])
             elif step != 'numor':
                 label += ' {}: {:.3f}'.format(step, a[step])
 
@@ -893,7 +906,8 @@ class irixs:
                 ncol = 2
             else:
                 ncol = 1
-            ax.legend(loc=leg, handlelength=1.5, labelspacing=0.3, handletextpad=0.5, ncol=ncol)
+            ax.legend(loc=leg, handlelength=1.5, labelspacing=0.3, handletextpad=0.5,
+                        ncol=ncol, fontsize='small')
         
         if vline is not False:
             if not isinstance(vline,(tuple,list)):
