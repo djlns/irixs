@@ -370,11 +370,11 @@ class irixs:
                 a['y0'] = self.y0
 
 
-    def logbook(self, numors=None, extras=['th'],
+    def logbook(self, numors=None, nend=None, extras=['th'],
                 hkl=False, date=False, only_rixs=True):
         if numors is None:
             numors = self.runs.keys()
-        elif not isinstance(numors,(list,tuple,range)):
+        elif nend is None:
             try:
                 latest = max(iglob(os.path.join(self.datdir,'*.fio')),
                              key=os.path.getctime)
@@ -387,6 +387,8 @@ class irixs:
                 numors = range(numors,int(latest)+1)
             except ValueError:
                 return
+        else:
+            numors = range(numors,nend+1)
 
         for numor in numors:
             out = ''
@@ -400,9 +402,9 @@ class irixs:
                 m1, m2, pnt, t = [float(c) for c in command[2:]]
             except:
                 continue
-            out += '#{0:<4}{1:>13}  '.format(numor,motor)
+            out += '#{0:<4}{1:>13} '.format(numor,motor)
             if motor in ['rixs_ener']:
-                out += '{0:+4.2f} > {1:+4.2f}'.format(m1, m2)
+                out += '{0:>+6.2f} > {1:+4.2f}'.format(m1, m2)
             else:
                 if only_rixs:
                     continue
