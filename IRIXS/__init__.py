@@ -715,7 +715,10 @@ class irixs:
             header+= 'E0_ypixel: {0}\n'.format(a['y0'])
             header+= 'E0_offset: {0}\n'.format(en)
 
-            savefile = '{0}/{1}_{2:05d}.txt'.format(self.savedir_dat, self.exp, n)
+            if photon_counting:
+                savefile = '{0}/{1}_pc_{2:05d}.txt'.format(self.savedir_dat, self.exp, n)
+            else:
+                savefile = '{0}/{1}_{2:05d}.txt'.format(self.savedir_dat, self.exp, n)            
             np.savetxt(savefile, np.array([x, y]).T,
                         header=header+'\n{0:>24}{1:>24}'.format(a['auto'],'counts'))
 
