@@ -266,15 +266,15 @@ class irixs:
         self.E0 = E0
         self.y0 = y0
         self.roix = roix
+        self.roiy = roiy
         
         if roih:
-            if isinstance(y0,int):
+            try:
+                self.roiy = [y0-roih[0], y0+roih[1]]
+            except IndexError:
                 self.roiy = [y0-roih//2, y0+roih//2]
-            else:
-                print('roih can only be used with a single y0 value')
-                return
-        else:
-            self.roiy = roiy
+            except ValueError:
+                print('roih can only be used with a single y0 value!')
 
         self.threshold = threshold
         self.cutoff = cutoff
