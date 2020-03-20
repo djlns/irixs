@@ -239,7 +239,7 @@ def load_tiff(run, no, exp, datdir, localdir):
 class irixs:
 
     def __init__(self, exp,
-                 y0=None, roix=[0,2048], roiy=[0,2048],
+                 y0=None, roix=[0,2048], roiy=[0,2048], roih=None,
                  threshold=1010, cutoff=1800, detfac=935,
                  photon_factor = 750, E0=None, analyser=None, datdir=None,
                  photon_event_threshold=400, photon_max_events=0):
@@ -250,6 +250,7 @@ class irixs:
         y0 -- corresponding vertical pixel position on detector
         roix -- detector region of interest
         roiy -- detector region of interest
+        roih -- define height of roi instead of roiy, using y0 as centre
         threshold -- minimum to kill readout noise (use histogram to refine)
         cutoff -- upper limit to kill cosmic rays (use histogram to refine)
         detfac -- andor detector factor (0 if andor bgnd sub is enabled, 935 otherwise)
@@ -265,7 +266,16 @@ class irixs:
         self.E0 = E0
         self.y0 = y0
         self.roix = roix
-        self.roiy = roiy
+        
+        if roih:
+            if isinstance(y0,int):
+                self.roiy = [y0-roih//2, y0+roih//2]
+            else:
+                print('roih can only be used with a single y0 value')
+                return
+        else:
+            self.roiy = roiy
+
         self.threshold = threshold
         self.cutoff = cutoff
         self.detfac = detfac
@@ -622,7 +632,8 @@ class irixs:
             print(report)
 
 
-    def condition(self, bins, numors, fit=False, photon_counting=False, use_distortion_corr=True):
+    def condition(self, bins, numors, fit=False, force_reload=False,
+                  photon_counting=False, use_distortion_corr=True):
 
         if isinstance(numors, int):
             numors = [numors]
@@ -641,7 +652,7 @@ class irixs:
             for n in numor:
                 try:
                     a = self.runs[n]
-                    if a is None or not a['complete']:
+                    if a is None or not a['complete'] or force_reload:
                         self.load(n)
                 except KeyError:
                     self.load(n)
