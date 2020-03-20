@@ -374,6 +374,8 @@ class irixs:
                 hkl=False, date=False, only_rixs=True):
         if numors is None:
             numors = self.runs.keys()
+        elif isinstance(numors,(list,tuple,range)):
+            numors = list(numors)
         elif nend is None:
             try:
                 latest = max(iglob(os.path.join(self.datdir,'*.fio')),
