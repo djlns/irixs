@@ -885,7 +885,10 @@ class irixs:
             elif step == 'hkl':
                 label += ' {:.2f} {:.2f} {:.2f}'.format(a['qh'],a['qk'],a['ql'])
             elif step != 'numor':
-                label += ' {}: {:.3f}'.format(step, a[step])
+                try:
+                    label += ' {}: {:.3f}'.format(step, a[step])
+                except TypeError:
+                    label += ' {}: {}'.format(step, a[step])
 
             l, = ax.plot(x, y+i*ystp, fmt, color=c, lw=lw, label=label)
             if stderr and not plot_det and not norm:
