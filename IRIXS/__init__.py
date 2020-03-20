@@ -374,6 +374,11 @@ class irixs:
                         sys.stdout.write('\n')
                     sys.stdout.flush()
 
+            a['roix'] = self.roix
+            a['roiy'] = self.roiy
+            a['threshold'] = self.threshold
+            a['cutoff'] = self.cutoff
+            a['detfac'] = self.detfac
             if isinstance(self.y0,dict):
                 a['y0'] = self.y0[numor]
             else:
