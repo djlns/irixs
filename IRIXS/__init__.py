@@ -312,7 +312,7 @@ class irixs:
         self.corr_shift = False  # distortion correction
 
 
-    def load(self, numors, tiff=True):
+    def load(self, numors, tiff=True, force=True):
 
         if not isinstance(numors, (list, tuple, range)):
             numors = [numors]
@@ -322,7 +322,7 @@ class irixs:
 
         for numor in numors:
             run = self.runs[numor]
-            if run and run['complete']:
+            if run and run['complete'] and not force:
                 continue
 
             path = '{0}/{1}_{2:05d}.fio'.format(self.datdir, self.exp, numor)
@@ -632,7 +632,7 @@ class irixs:
             print(report)
 
 
-    def condition(self, bins, numors, fit=False, force_reload=False,
+    def condition(self, bins, numors, fit=False,
                   photon_counting=False, use_distortion_corr=True):
 
         if isinstance(numors, int):
@@ -652,7 +652,7 @@ class irixs:
             for n in numor:
                 try:
                     a = self.runs[n]
-                    if a is None or not a['complete'] or force_reload:
+                    if a is None or not a['complete']:
                         self.load(n)
                 except KeyError:
                     self.load(n)
