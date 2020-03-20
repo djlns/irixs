@@ -270,7 +270,7 @@ class irixs:
         
         if roih:
             try:
-                self.roiy = [y0-roih[0], y0+roih[1]]
+                self.roiy = [y0+roih[0], y0+roih[1]]
             except IndexError:
                 self.roiy = [y0-roih//2, y0+roih//2]
             except ValueError:
@@ -312,7 +312,7 @@ class irixs:
         self.corr_shift = False  # distortion correction
 
 
-    def load(self, numors, tiff=True, force=True):
+    def load(self, numors, tiff=True, force=False):
 
         if not isinstance(numors, (list, tuple, range)):
             numors = [numors]
