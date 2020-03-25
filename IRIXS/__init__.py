@@ -302,7 +302,7 @@ class irixs:
         self.corr_shift = False  # distortion correction
 
 
-    def load(self, numors, tiff=True, force=False):
+    def load(self, numors, tiff=True):
 
         if not isinstance(numors, (list, tuple, range)):
             numors = [numors]
@@ -311,10 +311,6 @@ class irixs:
                 self.runs[n] = None
 
         for numor in numors:
-            run = self.runs[numor]
-            if run and run['complete'] and not force:
-                continue
-
             path = '{0}/{1}_{2:05d}.fio'.format(self.datdir, self.exp, numor)
             if self.localdir:
                 path2 = '{0}/{1}_{2:05d}.fio'.format(
@@ -969,6 +965,8 @@ class irixs:
         a = self.runs[numor]
      
         pnts = a['pnts']
+        to = a['threshold'] - a['detfac']
+        co = a['cutoff'] - a['detfac']
 
         i = {}
         i['idx'] = no
@@ -978,7 +976,7 @@ class irixs:
         imgdim = imdat.shape
 
         if hist:
-            b, c = np.histogram(imdat, bins=range(self.to, self.co, 1))
+            b, c = np.histogram(imdat, bins=range(to, co, 1))
             i['ax'].bar(c[:-1], b)
         elif photon_counting:
             imdat,_ = scipy.ndimage.label(imdat)
@@ -1002,7 +1000,7 @@ class irixs:
                 imdat = np.zeros(imgdim)
                 print('check run: no tiff for step {}'.format(i['idx']))
             if hist:
-                b, c = np.histogram(imdat, bins=range(self.to, self.co, 1))
+                b, c = np.histogram(imdat, bins=range(to, co, 1))
                 i['ax'].cla()
                 i['ax'].bar(c[:-1], b)
             else:
