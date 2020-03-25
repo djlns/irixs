@@ -347,6 +347,8 @@ class irixs:
             if 'to' in a and to == a['to'] and co == a['co'] and a['complete']:
                 continue
 
+            print(to,co,a['to'],a['co'],a['complete'])
+
             if 'img' not in a or a['img'] is None:
                 imtest = load_tiff(numor, 0, self.exp, self.datdir, self.localdir)
                 if imtest is None:
@@ -379,6 +381,7 @@ class irixs:
 
     def logbook(self, numors=None, nend=None, extras=['th'],
                 hkl=False, date=False, only_rixs=True):
+
         if numors is None:
             numors = self.runs.keys()
         elif isinstance(numors,(list,tuple,range)):
@@ -398,6 +401,7 @@ class irixs:
                 return
         else:
             numors = range(numors,nend+1)
+
         self.load(numors, False)
         for numor in numors:
             out = ''
