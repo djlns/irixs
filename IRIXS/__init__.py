@@ -267,14 +267,7 @@ class irixs:
         self.y0 = y0
         self.roix = roix
         self.roiy = roiy
-        
-        if roih:
-            try:
-                self.roiy = [y0+roih[0], y0+roih[1]]
-            except IndexError:
-                self.roiy = [y0-roih//2, y0+roih//2]
-            except ValueError:
-                print('roih can only be used with a single y0 value!')
+        self.roih = roih
 
         self.threshold = threshold
         self.cutoff = cutoff
@@ -282,9 +275,6 @@ class irixs:
         self.photon_factor = photon_factor
         self.event_min = photon_event_threshold
         self.max_events = photon_max_events
-
-        self.to = self.threshold - self.detfac
-        self.co = self.cutoff - self.detfac
 
         quartz = ([(1, 0, 2) , (4.9133, 4.9133, 5.4053, 90, 90, 120)])
         self.analyser = quartz if analyser is None else analyser
@@ -343,6 +333,9 @@ class irixs:
         if not tiff:
             return
 
+        to = self.threshold - self.detfac
+        co = self.cutoff - self.detfac
+
         for numor in numors:
             
             a = self.runs[numor]
@@ -367,22 +360,29 @@ class irixs:
                         break
                     if img is not None:
                         img -= self.detfac
-                        img[~np.logical_and(img>self.to, img<self.co)] = 0
+                        img[~np.logical_and(img>to, img<co)] = 0
                         a['img'].append(img)
                     sys.stdout.write('\r#{0:<4} {1:<3}/{2:>3} '.format(numor, i+1, a['pnts']))
                     if i+1 == a['pnts']:
                         sys.stdout.write('\n')
                     sys.stdout.flush()
-
-            a['roix'] = self.roix
-            a['roiy'] = self.roiy
+           
             a['threshold'] = self.threshold
             a['cutoff'] = self.cutoff
             a['detfac'] = self.detfac
+            a['roix'] = self.roix
+            a['E0'] = self.E0
             if isinstance(self.y0,dict):
                 a['y0'] = self.y0[numor]
             else:
                 a['y0'] = self.y0
+            if self.roih:
+                try:
+                    a['roiy'] = [a['y0']+self.roih[0], a['y0']+self.roih[1]]
+                except IndexError:
+                    a['roiy'] = [a['y0']-self.roih//2, a['y0']+self.roih//2]
+            else:
+                a['roiy'] = self.roiy
 
 
     def logbook(self, numors=None, nend=None, extras=['th'],
@@ -453,7 +453,6 @@ class irixs:
                  plot=True, vmax=10, savefig=False,
                  use_distortion_corr=False):
 
-        roix, roiy = self.roix, self.roiy
         roic = '#F012BE'
         report = ''
 
@@ -466,10 +465,11 @@ class irixs:
             a = self.runs[numor]
             if a is None or a['img'] is None:
                 continue
-
+            
             savefile = '{0}/{1}_{2:05d}_det.txt'.format(
                        self.savedir_det, self.exp, numor)
 
+            roix, roiy = a['roix'], a['roiy']
             step = a['auto']
             if step == 'exp_dmy01':
                 oneshot = True
@@ -492,7 +492,7 @@ class irixs:
                     imtotal[:,c1:c2] = np.roll(imtotal[:,c1:c2],sh,axis=0)
 
             if oneshot:
-                x = np.arange(self.roiy[0], self.roiy[1])
+                x = np.arange(roiy[0], roiy[1])
                 y = np.nansum(imgarr, axis=(0,2)) / imgarr.shape[0]
             else:
                 for i, ef in enumerate(a['EF']):
@@ -518,13 +518,13 @@ class irixs:
             header = 'experiment: {0}\n'.format(self.exp)
             header+= 'run: {0}\n'.format(numor)
             header+= 'command: {0}\n'.format(' '.join(a['command']))
-            header+= 'dcm_ener: {0}\n'.format(a["dcm_ener"])
-            header+= 'rixs_ener: {0}\n'.format(a["rixs_ener"])
-            header+= 'det_threshold: {0}\n'.format(self.threshold)
-            header+= 'det_cutoff: {0}\n'.format(self.cutoff)
-            header+= 'det_factor: {0}\n'.format(self.detfac)
-            header+= 'det_roix: {0}\n'.format(self.roix)
-            header+= 'det_roiy: {0}\n\n'.format(self.roiy)
+            header+= 'dcm_ener: {0}\n'.format(a['dcm_ener'])
+            header+= 'rixs_ener: {0}\n'.format(a['rixs_ener'])
+            header+= 'det_threshold: {0}\n'.format(a['threshold'])
+            header+= 'det_cutoff: {0}\n'.format(a['cutoff'])
+            header+= 'det_factor: {0}\n'.format(a['detfac'])
+            header+= 'det_roix: {0}\n'.format(a['roix'])
+            header+= 'det_roiy: {0}\n\n'.format(a['roiy'])
 
             if oneshot:
                 header+= '{0:>24}{1:>24}'.format('y-pixel','counts')
@@ -575,7 +575,7 @@ class irixs:
                                 linewidth=0.5, linestyle='dashed',
                                 edgecolor=roic, fill=False)
                 ax[0].add_patch(rect)
-                ax[0].axhline(self.y0, color=roic, lw=0.5, dashes=(2, 2))
+                ax[0].axhline(a['y0'], color=roic, lw=0.5, dashes=(2, 2))
                 
                 div = make_axes_locatable(ax[0])
                 cax = div.append_axes('right', size='4%', pad=0.1)
@@ -611,12 +611,12 @@ class irixs:
                     ax[2].plot(a['xd'], a['comH'], lw=1, color='#0074D9')
                     ax[2].set_title('Horizontal COM')
                     ax[2].set_ylabel('x-pixel')
-                    ax[2].set_ylim(self.roix[0],self.roix[1])
+                    ax[2].set_ylim(roix[0], roix[1])
 
                     ax[3].plot(a['xd'], a['comV'], lw=1, color='#FF4136')
                     ax[3].set_title('Vertical COM')
                     ax[3].set_ylabel('y-pixel')
-                    ax[3].set_ylim(self.roiy[0],self.roiy[1])
+                    ax[3].set_ylim(roiy[0], roiy[1])
 
                 for axi in ax[1:]:
                     axi.minorticks_on()
@@ -643,9 +643,6 @@ class irixs:
         if isinstance(numors, int):
             numors = [numors]
 
-        xinit = np.arange(self.roiy[0], self.roiy[1])
-        if photon_counting:
-            xinit = np.tile(xinit,(self.roix[1]-self.roix[0],1)).T
         report = ''
 
         for numor in numors:
@@ -671,15 +668,20 @@ class irixs:
                 else:
                     ns.append(n)
 
+                E0, roix, roiy = a['E0'], a['roix'], a['roiy']
+                xinit = np.arange(roiy[0], roiy[1])
+                if photon_counting:
+                    xinit = np.tile(xinit,(roix[1]-roix[0],1)).T
+
                 for ef, img in zip(a['EF'],a['img']):
 
-                    img = deepcopy(img[:,self.roix[0]:self.roix[1]])
+                    img = deepcopy(img[:,roix[0]:roix[1]])
 
                     if use_distortion_corr and self.corr_shift is not False:
                         for sh,(c1,c2) in zip(self.corr_shift,self.corr_regions):
                             img[:,c1:c2] = np.roll(img[:,c1:c2],sh,axis=0)
 
-                    img  = img[self.roiy[0]:self.roiy[1]]
+                    img  = img[roiy[0]:roiy[1]]
                     if photon_counting:
                         lbl,nlbl = scipy.ndimage.label(img)
                         try:
@@ -707,10 +709,10 @@ class irixs:
             x, y = np.array(x), np.array(y)
             y = y[np.argsort(x)]
             x = np.sort(x)
-            if self.E0 is None:
+            if E0 is None:
                 en = a['EI']
             else:
-                en = self.E0
+                en = E0
             x -= en
 
             header = 'experiment: {0}\n'.format(self.exp)
@@ -725,11 +727,11 @@ class irixs:
             header+= 'rixs_th: {0}\n'.format(a["rixs_th"])
             header+= 'rixs_chi: {0}\n'.format(a["rixs_chi"])
             header+= 'q_hkl: {0:.4f} {1:.4f} {2:.4f}\n'.format(a["qh"], a["qk"], a["ql"])
-            header+= 'det_threshold: {0}\n'.format(self.threshold)
-            header+= 'det_cutoff: {0}\n'.format(self.cutoff)
-            header+= 'det_factor: {0}\n'.format(self.detfac)
-            header+= 'det_roix: {0}\n'.format(self.roix)
-            header+= 'det_roiy: {0}\n'.format(self.roiy)
+            header+= 'det_threshold: {0}\n'.format(a['threshold'])
+            header+= 'det_cutoff: {0}\n'.format(a['cutoff'])
+            header+= 'det_factor: {0}\n'.format(a['detfac'])
+            header+= 'det_roix: {0}\n'.format(a['roix'])
+            header+= 'det_roiy: {0}\n'.format(a['roiy'])
             header+= 'E0_ypixel: {0}\n'.format(a['y0'])
             header+= 'E0_offset: {0}\n'.format(en)
 
