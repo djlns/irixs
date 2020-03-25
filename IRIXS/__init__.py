@@ -306,6 +306,11 @@ class irixs:
 
         if not isinstance(numors, (list, tuple, range)):
             numors = [numors]
+
+        flatten = lambda *n: (e for a in n
+            for e in (flatten(*a) if isinstance(a, (tuple, list)) else (a,)))
+        numors = list(flatten(numors))
+
         for n in numors:
             if n not in self.runs.keys():
                 self.runs[n] = None
@@ -339,6 +344,9 @@ class irixs:
             if not a:
                 continue
 
+            if 'to' in a and to == a['to'] and co == a['co'] and a['complete']:
+                continue
+
             if 'img' not in a or a['img'] is None:
                 imtest = load_tiff(numor, 0, self.exp, self.datdir, self.localdir)
                 if imtest is None:
@@ -366,19 +374,7 @@ class irixs:
             a['threshold'] = self.threshold
             a['cutoff'] = self.cutoff
             a['detfac'] = self.detfac
-            a['roix'] = self.roix
-            a['E0'] = self.E0
-            if isinstance(self.y0,dict):
-                a['y0'] = self.y0[numor]
-            else:
-                a['y0'] = self.y0
-            if self.roih:
-                try:
-                    a['roiy'] = [a['y0']+self.roih[0], a['y0']+self.roih[1]]
-                except IndexError:
-                    a['roiy'] = [a['y0']-self.roih//2, a['y0']+self.roih//2]
-            else:
-                a['roiy'] = self.roiy
+            a['to'], a['co'] = to, co
 
 
     def logbook(self, numors=None, nend=None, extras=['th'],
@@ -402,10 +398,9 @@ class irixs:
                 return
         else:
             numors = range(numors,nend+1)
-
+        self.load(numors, False)
         for numor in numors:
             out = ''
-            self.load(numor, False)
             a = self.runs[numor]
             if a is None:
                 continue
@@ -450,14 +445,12 @@ class irixs:
                  use_distortion_corr=False):
 
         roic = '#F012BE'
-        report = ''
+        roix, roiy = self.roix, self.roiy
 
+        self.load(numors)
         if not isinstance(numors,(list,tuple,range)):
             numors = [numors]
-
         for numor in numors:
-
-            self.load(numor)
             a = self.runs[numor]
             if a is None or a['img'] is None:
                 continue
@@ -465,7 +458,6 @@ class irixs:
             savefile = '{0}/{1}_{2:05d}_det.txt'.format(
                        self.savedir_det, self.exp, numor)
 
-            roix, roiy = a['roix'], a['roiy']
             step = a['auto']
             if step == 'exp_dmy01':
                 oneshot = True
@@ -519,8 +511,8 @@ class irixs:
             header+= 'det_threshold: {0}\n'.format(a['threshold'])
             header+= 'det_cutoff: {0}\n'.format(a['cutoff'])
             header+= 'det_factor: {0}\n'.format(a['detfac'])
-            header+= 'det_roix: {0}\n'.format(a['roix'])
-            header+= 'det_roiy: {0}\n\n'.format(a['roiy'])
+            header+= 'det_roix: {0}\n'.format(roix)
+            header+= 'det_roiy: {0}\n\n'.format(roiy)
 
             if oneshot:
                 header+= '{0:>24}{1:>24}'.format('y-pixel','counts')
@@ -538,13 +530,14 @@ class irixs:
             if fit:
                 try:
                     a['xfd'], a['yfd'], a['pd'] = peak_fit(x, y)
-                    report += '#{0:<4} (det)  '.format(numor)
+                    report  = '#{0:<4} (det)  '.format(numor)
                     report += 'cen:{0:.4f}   '.format(a['pd'][2])
                     report += 'amp:{0:.2f}   '.format(a['pd'][0])
                     report += 'fwhm:{0:.3f}   '.format(a['pd'][1]*2)
                     if defs['fit_pv']:
                         report += 'fra:{0:.1f}   '.format(a['pd'][3])
                     report += 'bg:{0:.3f}\n'.format(a['pd'][3])
+                    print(report)
                 except:
                     a['pd'] = False
             else:
@@ -571,7 +564,11 @@ class irixs:
                                 linewidth=0.5, linestyle='dashed',
                                 edgecolor=roic, fill=False)
                 ax[0].add_patch(rect)
-                ax[0].axhline(a['y0'], color=roic, lw=0.5, dashes=(2, 2))
+                if isinstance(self.y0, dict):
+                    y0 = self.y0[numor]
+                else:
+                    y0 = self.y0         
+                ax[0].axhline(y0, color=roic, lw=0.5, dashes=(2, 2))
                 
                 div = make_axes_locatable(ax[0])
                 cax = div.append_axes('right', size='4%', pad=0.1)
@@ -629,42 +626,41 @@ class irixs:
                         savename = '{0}/{1}_s{2}.pdf'.format(
                                 self.savedir_fig, savefig, a['numor']) 
                     plt.savefig(savename, dpi=300)
-        if fit:
-            print(report)
 
 
     def condition(self, bins, numors, fit=False,
                   photon_counting=False, use_distortion_corr=True):
 
+        self.load(numors)
+        roix = self.roix
         if isinstance(numors, int):
             numors = [numors]
 
-        report = ''
-
         for numor in numors:
-
+            
             if isinstance(numor,int):
                 numor = [numor]
-
+            
             x,y,ns = [],[],[]
             for n in numor:
-                try:
-                    a = self.runs[n]
-                    if a is None or not a['complete']:
-                        self.load(n)
-                except KeyError:
-                    self.load(n)
                 a = self.runs[n]
-                if a is None:
+                if a is None or a['img'] is None:
                     continue
-                if 'img' not in a:
-                    self.load(n)
-                if a['img'] is None or a['auto'] not in ['rixs_ener','dcm_ener','exp_dmy01']:
+                if a['auto'] not in ['rixs_ener','dcm_ener','exp_dmy01']:
                     continue
+                
+                ns.append(n)
+                if isinstance(self.y0,dict):
+                    y0 = self.y0[n]
                 else:
-                    ns.append(n)
-
-                E0, roix, roiy = a['E0'], a['roix'], a['roiy']
+                    y0 = self.y0
+                if self.roih:
+                    try:
+                        roiy = [y0+self.roih[0], y0+self.roih[1]]
+                    except IndexError:
+                        roiy = [y0-self.roih//2, y0+self.roih//2]
+                else:
+                    roiy = self.roiy
                 xinit = np.arange(roiy[0], roiy[1])
                 if photon_counting:
                     xinit = np.tile(xinit,(roix[1]-roix[0],1)).T
@@ -685,14 +681,14 @@ class irixs:
                                                                  np.sum, float, 0)
                             xi = scipy.ndimage.labeled_comprehension(xinit,lbl,range(1,nlbl+1),
                                                                  np.mean, float, 0)
-                            xi = (xi - a['y0']) * pix_to_E(ef, self.dspacing) + ef
+                            xi = (xi - y0) * pix_to_E(ef, self.dspacing) + ef
                             xi = xi[yi>self.event_min]
                             yi = yi[yi>self.event_min]
                         except ValueError:
                             pass
                     else:
                         yi = np.sum(img, axis=1)
-                        xi = (xinit - a['y0']) * pix_to_E(ef, self.dspacing) + ef
+                        xi = (xinit - y0) * pix_to_E(ef, self.dspacing) + ef
                     x.extend(xi)
                     y.extend(yi)
             if not x:
@@ -705,11 +701,13 @@ class irixs:
             x, y = np.array(x), np.array(y)
             y = y[np.argsort(x)]
             x = np.sort(x)
-            if E0 is None:
+            if self.E0 is None:
                 en = a['EI']
             else:
-                en = E0
+                en = self.E0
             x -= en
+
+            a['roix'], a['roiy'], a['y0'], a['E0'] = roix, roiy, y0, en
 
             header = 'experiment: {0}\n'.format(self.exp)
             header+= 'run: {0}\n'.format(n)
@@ -726,9 +724,9 @@ class irixs:
             header+= 'det_threshold: {0}\n'.format(a['threshold'])
             header+= 'det_cutoff: {0}\n'.format(a['cutoff'])
             header+= 'det_factor: {0}\n'.format(a['detfac'])
-            header+= 'det_roix: {0}\n'.format(a['roix'])
-            header+= 'det_roiy: {0}\n'.format(a['roiy'])
-            header+= 'E0_ypixel: {0}\n'.format(a['y0'])
+            header+= 'det_roix: {0}\n'.format(roix)
+            header+= 'det_roiy: {0}\n'.format(roiy)
+            header+= 'E0_ypixel: {0}\n'.format(y0)
             header+= 'E0_offset: {0}\n'.format(en)
 
             if photon_counting:
@@ -762,13 +760,14 @@ class irixs:
 
             if fit:
                 a['xf'], a['yf'], a['p'] = peak_fit(x, y)
-                report += '#{0:<4} (bin: {1})  '.format(n, bins)
+                report  = '#{0:<4} (bin: {1})  '.format(n, bins)
                 report += 'cen:{0:8.4f}   '.format(a['p'][2])
                 report += 'amp:{0:6.2f}   '.format(a['p'][0])
                 report += 'fwhm:{0:6.3f}   '.format(a['p'][1]*2)
                 if defs['fit_pv']:
                     report += 'fra:{0:4.1f}   '.format(a['p'][3])
                 report += 'bg:{0:6.3f}\n'.format(a['p'][3])
+                print(report)
             else:
                 a['p'] = False
 
@@ -781,7 +780,7 @@ class irixs:
                 savefile = '{0}/{1}_{2:05d}_b{3}.txt'.format(
                     self.savedir_con, self.exp, n, bins)
             np.savetxt(savefile, np.array([x, y, e]).T, header=header)
-        print(report)
+
 
 
     def plot(self, numors, ax=None, step='numor', labels=None, sort=False, rev=False,
