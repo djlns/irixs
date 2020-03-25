@@ -315,23 +315,23 @@ class irixs:
             if n not in self.runs.keys():
                 self.runs[n] = None
 
-        for numor in numors:
-            if self.runs[numor] is not None and self.runs[numor]['complete']:
+        for n in numors:
+            if self.runs[n] and self.runs[n]['complete']:
                 continue
-            path = '{0}/{1}_{2:05d}.fio'.format(self.datdir, self.exp, numor)
+            path = '{0}/{1}_{2:05d}.fio'.format(self.datdir, self.exp, n)
             if self.localdir:
                 path2 = '{0}/{1}_{2:05d}.fio'.format(
-                        self.localdir, self.exp, numor)
+                        self.localdir, self.exp, n)
                 if not os.path.isfile(path2):
-                    a = load_fio(numor, self.exp, self.datdir)
+                    a = load_fio(n, self.exp, self.datdir)
                     if a and a['complete']:
                         os.makedirs(self.localdir, exist_ok=True)
                         shutil.copyfile(path, path2)
                 else:
-                    a = load_fio(numor, self.exp, self.localdir)
+                    a = load_fio(n, self.exp, self.localdir)
             else:
-                a = load_fio(numor, self.exp, self.datdir)
-            self.runs[numor] = a
+                a = load_fio(n, self.exp, self.datdir)
+            self.runs[n] = a
 
         if not tiff:
             return
@@ -339,20 +339,33 @@ class irixs:
         to = self.threshold - self.detfac
         co = self.cutoff - self.detfac
 
-        for numor in numors:
+        for n in numors:
             
-            a = self.runs[numor]
-
+            a = self.runs[n]
             if not a:
                 continue
+
+            if isinstance(self.y0,dict):
+                y0 = self.y0[n]
+            else:
+                y0 = self.y0
+            if self.roih:
+                try:
+                    roiy = [y0+self.roih[0], y0+self.roih[1]]
+                except IndexError:
+                    roiy = [y0-self.roih//2, y0+self.roih//2]
+            else:
+                roiy = self.roiy
+
+            a['roix'], a['roiy'], a['y0'] = self.roix, roiy, y0
 
             if 'to' in a and to == a['to'] and co == a['co'] and a['complete']:
                 continue
  
             if 'img' not in a or a['img'] is None:
-                imtest = load_tiff(numor, 0, self.exp, self.datdir, self.localdir)
+                imtest = load_tiff(n, 0, self.exp, self.datdir, self.localdir)
                 if imtest is None:
-                    print('#{0:<4} -- no images'.format(numor))
+                    print('#{0:<4} -- no images'.format(n))
                     a['img'] = None
                     continue
                 else:
@@ -360,7 +373,7 @@ class irixs:
 
             for i,_ in enumerate(a['EF']):
                 if i > len(a['img'])-1:
-                    img = load_tiff(numor, i, self.exp, self.datdir, self.localdir)
+                    img = load_tiff(n, i, self.exp, self.datdir, self.localdir)
                     if img is None:
                         print('!!!')
                         break
@@ -368,7 +381,7 @@ class irixs:
                         img -= self.detfac
                         img[~np.logical_and(img>to, img<co)] = 0
                         a['img'].append(img)
-                    sys.stdout.write('\r#{0:<4} {1:<3}/{2:>3} '.format(numor, i+1, a['pnts']))
+                    sys.stdout.write('\r#{0:<4} {1:<3}/{2:>3} '.format(n, i+1, a['pnts']))
                     if i+1 == a['pnts']:
                         sys.stdout.write('\n')
                     sys.stdout.flush()
@@ -449,9 +462,8 @@ class irixs:
                  use_distortion_corr=False):
 
         roic = '#F012BE'
-        roix, roiy = self.roix, self.roiy
-
         self.load(numors)
+
         if not isinstance(numors,(list,tuple,range)):
             numors = [numors]
         for numor in numors:
@@ -462,7 +474,7 @@ class irixs:
             savefile = '{0}/{1}_{2:05d}_det.txt'.format(
                        self.savedir_det, self.exp, numor)
 
-            step = a['auto']
+            step, roix, roiy, y0 = a['auto'], a['roix'], a['roiy'], a['y0']
             if step == 'exp_dmy01':
                 oneshot = True
                 com = False
@@ -568,10 +580,6 @@ class irixs:
                                 linewidth=0.5, linestyle='dashed',
                                 edgecolor=roic, fill=False)
                 ax[0].add_patch(rect)
-                if isinstance(self.y0, dict):
-                    y0 = self.y0[numor]
-                else:
-                    y0 = self.y0         
                 ax[0].axhline(y0, color=roic, lw=0.5, dashes=(2, 2))
                 
                 div = make_axes_locatable(ax[0])
@@ -636,7 +644,6 @@ class irixs:
                   photon_counting=False, use_distortion_corr=True):
 
         self.load(numors)
-        roix = self.roix
         if isinstance(numors, int):
             numors = [numors]
 
@@ -652,19 +659,9 @@ class irixs:
                     continue
                 if a['auto'] not in ['rixs_ener','dcm_ener','exp_dmy01']:
                     continue
-                
                 ns.append(n)
-                if isinstance(self.y0,dict):
-                    y0 = self.y0[n]
-                else:
-                    y0 = self.y0
-                if self.roih:
-                    try:
-                        roiy = [y0+self.roih[0], y0+self.roih[1]]
-                    except IndexError:
-                        roiy = [y0-self.roih//2, y0+self.roih//2]
-                else:
-                    roiy = self.roiy
+
+                roix, roiy, y0 = a['roix'], a['roiy'], a['y0']
                 xinit = np.arange(roiy[0], roiy[1])
                 if photon_counting:
                     xinit = np.tile(xinit,(roix[1]-roix[0],1)).T
@@ -710,8 +707,7 @@ class irixs:
             else:
                 en = self.E0
             x -= en
-
-            a['roix'], a['roiy'], a['y0'], a['E0'] = roix, roiy, y0, en
+            a['E0'] = en
 
             header = 'experiment: {0}\n'.format(self.exp)
             header+= 'run: {0}\n'.format(n)
