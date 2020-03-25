@@ -316,6 +316,8 @@ class irixs:
                 self.runs[n] = None
 
         for numor in numors:
+            if self.runs[numor] is not None and self.runs[numor]['complete']:
+                continue
             path = '{0}/{1}_{2:05d}.fio'.format(self.datdir, self.exp, numor)
             if self.localdir:
                 path2 = '{0}/{1}_{2:05d}.fio'.format(
@@ -346,9 +348,7 @@ class irixs:
 
             if 'to' in a and to == a['to'] and co == a['co'] and a['complete']:
                 continue
-
-            print(to,co,a['to'],a['co'],a['complete'])
-
+ 
             if 'img' not in a or a['img'] is None:
                 imtest = load_tiff(numor, 0, self.exp, self.datdir, self.localdir)
                 if imtest is None:
