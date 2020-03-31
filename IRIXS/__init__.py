@@ -552,7 +552,7 @@ class irixs:
                     report += 'fwhm:{0:.3f}   '.format(a['pd'][1]*2)
                     if defs['fit_pv']:
                         report += 'fra:{0:.1f}   '.format(a['pd'][3])
-                    report += 'bg:{0:.3f}\n'.format(a['pd'][3])
+                    report += 'bg:{0:.3f}'.format(a['pd'][3])
                     print(report)
                 except:
                     a['pd'] = False
@@ -766,7 +766,7 @@ class irixs:
                 report += 'fwhm:{0:6.3f}   '.format(a['p'][1]*2)
                 if defs['fit_pv']:
                     report += 'fra:{0:4.1f}   '.format(a['p'][3])
-                report += 'bg:{0:6.3f}\n'.format(a['p'][3])
+                report += 'bg:{0:6.3f}'.format(a['p'][3])
                 print(report)
             else:
                 a['p'] = False
