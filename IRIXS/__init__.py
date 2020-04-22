@@ -332,7 +332,11 @@ class irixs:
                 continue
 
             if isinstance(self.y0,dict):
-                y0 = self.y0[n]
+                try:
+                    y0 = self.y0[n]
+                except KeyError:
+                    print('#{} -- y0 not given'.format(n))
+                    continue
             else:
                 y0 = self.y0
             if self.roih:
