@@ -6,15 +6,11 @@ import scipy.ndimage
 
 from numpy import pi,sin,cos,tan,arccos,arcsin,arctan,sqrt,log,radians,degrees
 from scipy.optimize import curve_fit
+from matplotlib.pyplot import imread
 from matplotlib.patches import Rectangle
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from copy import deepcopy
 from glob import iglob
-
-try:
-    from tifffile import imread
-except ImportError:
-    from matplotlib.pyplot import imread
 
 #### Default Variables ########################################################
 
@@ -26,8 +22,6 @@ defs = {
 'savedir_fig': './fig',  #plot routine savedir
 'savedir_raw': './raw',  #local storarge of raw data, False to disable
 'savedir_con': './binned',  #binned data
-
-'fit_pv': True,  #pseudovoight or lorentzian
 }
 
 PIX_EN_CONV = 13.5E-6
@@ -98,12 +92,6 @@ def peak(x, a, sl, x0, f, bgnd):
     return m
 
 
-def lorentzian(x, a, sl, x0, bgnd):
-    m = np.full(len(x), bgnd)
-    m += (a/np.pi) * (sl / ((x-x0)**2. + sl**2.))
-    return m
-
-
 def peak_fit(x, y):
     fra = 0.5
     bgnd = float(np.min(y))
@@ -113,17 +101,13 @@ def peak_fit(x, y):
     fwhm = np.abs(half-cen)*2
     sig = fwhm / 2
     amp = height*(sig*np.sqrt(2.*np.pi))
+    
     xf = np.linspace(x.min(), x.max(), 1000)
-    if defs['fit_pv']:
-        p0 = [amp, sig, cen, fra, bgnd]
-        bounds = [(0, 1E-6, -1E9, 0, 0),(1E9, 1E6, 1E9, 1, 1E9)]
-        p, _ = curve_fit(peak, x, y, p0, bounds=bounds)
-        yi = peak(xf, *p)
-    else:
-        p0 = [amp, sig, cen, bgnd]
-        bounds = [(0, 1E-6, -1E9, 0),(1E9, 1E6, 1E9, 1E9)]
-        p, _ = curve_fit(lorentzian, x, y, p0, bounds=bounds)
-        yi = lorentzian(xf, *p)
+    p0 = [amp, sig, cen, fra, bgnd]
+    bounds = [(0, 1E-6, -1E9, 0, 0),(1E9, 1E6, 1E9, 1, 1E9)]
+    p, _ = curve_fit(peak, x, y, p0, bounds=bounds)
+    yi = peak(xf, *p)
+    
     return xf, yi, p
 
 
@@ -224,7 +208,7 @@ def load_tiff(run, no, exp, datdir, localdir):
                     os.makedirs(os.path.dirname(path2), exist_ok=True)
                     shutil.copyfile(path, path2)
                     img = imread(path2)
-                except:
+                except IOError:
                     return
         else:
             try:
@@ -306,6 +290,8 @@ class irixs:
 
         if not isinstance(numors, (list, tuple, range)):
             numors = [numors]
+        if isinstance(numors, range):
+            numors = list(numors)
 
         flatten = lambda *n: (e for a in n
             for e in (flatten(*a) if isinstance(a, (tuple, list)) else (a,)))
@@ -414,8 +400,9 @@ class irixs:
                 return
         else:
             numors = range(numors,nend+1)
-
+        
         self.load(numors, False)
+        
         for numor in numors:
             out = ''
             a = self.runs[numor]
@@ -518,6 +505,7 @@ class irixs:
                 x, y = np.array(x), np.array(y)
 
             a['xd'], a['yd'] = x, y
+            a['label'] = '{}'.format(numor)
 
             header = 'experiment: {0}\n'.format(self.exp)
             header+= 'run: {0}\n'.format(numor)
@@ -550,8 +538,7 @@ class irixs:
                     report += 'cen:{0:.4f}   '.format(a['pd'][2])
                     report += 'amp:{0:.2f}   '.format(a['pd'][0])
                     report += 'fwhm:{0:.3f}   '.format(a['pd'][1]*2)
-                    if defs['fit_pv']:
-                        report += 'fra:{0:.1f}   '.format(a['pd'][3])
+                    report += 'fra:{0:.1f}   '.format(a['pd'][3])
                     report += 'bg:{0:.3f}'.format(a['pd'][3])
                     print(report)
                 except:
@@ -764,8 +751,7 @@ class irixs:
                 report += 'cen:{0:8.4f}   '.format(a['p'][2])
                 report += 'amp:{0:6.2f}   '.format(a['p'][0])
                 report += 'fwhm:{0:6.3f}   '.format(a['p'][1]*2)
-                if defs['fit_pv']:
-                    report += 'fra:{0:4.1f}   '.format(a['p'][3])
+                report += 'fra:{0:4.1f}   '.format(a['p'][3])
                 report += 'bg:{0:6.3f}'.format(a['p'][3])
                 print(report)
             else:
@@ -892,14 +878,11 @@ class irixs:
                 ax.errorbar(x,y+i*ystp,e,fmt='none',color=l.get_color(),lw=lw)
 
             if show_fit and p is not False:
-                if defs['fit_pv']:
-                    amp, sig, cen, fra, bgnd = p
-                else:
-                    amp, sig, cen, bgnd = p
+                amp, sig, cen, fra, bgnd = p
                 
                 ax.plot(xf, yf+i*ystp, color=l.get_color(), lw=0.5)
                 
-                if len(numors) == 1:
+                if len(numors) == 1 and len(ax.texts) == 0:
                     fr = 'amp: {:.2f}\nfwhm: {:.3f}\ncen: {:.4f}'.format(
                         amp, sig*2, cen)
                     ax.text(0.05, 0.95, fr, va='top', linespacing=1.3,
@@ -926,7 +909,9 @@ class irixs:
                 ncol = 1
             ax.legend(loc=leg, handlelength=1.5, labelspacing=0.3, handletextpad=0.5,
                         ncol=ncol, fontsize='small')
-        
+       
+        if plot_det:
+            vline = False
         if vline is not False:
             if not isinstance(vline,(tuple,list)):
                 vline = [vline]
@@ -1022,13 +1007,18 @@ class irixs:
         fig.canvas.mpl_connect('key_press_event', press)
 
 
-    def calc_distortion(self, numor, no=0, slices=8, force_y0=False,
+    def calc_distortion(self, numor, slices=8, oneshot=True, no=0, force_y0=False,
                             plot=True, vmin=0, vmax=10):
 
         self.load(numor)
         a = self.runs[numor]
 
-        img = a['img'][no]
+        if oneshot:
+            img = np.atleast_3d(np.array(a['img']))
+            img = np.sum(img, axis=0)
+            print(img.shape)
+        else:
+            img = a['img'][no]
         img = img[self.roiy[0]:self.roiy[1], self.roix[0]:self.roix[1]]
 
         y = np.sum(img,axis=1)
