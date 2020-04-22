@@ -1007,8 +1007,8 @@ class irixs:
         fig.canvas.mpl_connect('key_press_event', press)
 
 
-    def calc_distortion(self, numor, slices=8, oneshot=True, no=0, force_y0=False,
-                            plot=True, vmin=0, vmax=10):
+    def calc_distortion(self, numor, slices=8, oneshot=True, no=0,
+                            plot=False, vmin=0, vmax=10):
 
         self.load(numor)
         a = self.runs[numor]
@@ -1016,7 +1016,6 @@ class irixs:
         if oneshot:
             img = np.atleast_3d(np.array(a['img']))
             img = np.sum(img, axis=0)
-            print(img.shape)
         else:
             img = a['img'][no]
         img = img[self.roiy[0]:self.roiy[1], self.roix[0]:self.roix[1]]
@@ -1027,9 +1026,6 @@ class irixs:
         y0 = int(round(pinit[2]))
         print('fitted y0: {}'.format(y0))
         print('initial fwhm: {:.4f}'.format(pinit[1]*2))
-
-        if force_y0:
-            y0 = self.y0
 
         slice_width = img.shape[1]/slices
         shift = []
