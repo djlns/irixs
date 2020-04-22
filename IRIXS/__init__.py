@@ -335,7 +335,7 @@ class irixs:
                 try:
                     y0 = self.y0[n]
                 except KeyError:
-                    print('#{} -- y0 not given'.format(n))
+                    print('#{0:<4} -- y0 not given'.format(n))
                     continue
             else:
                 y0 = self.y0
@@ -450,7 +450,7 @@ class irixs:
 
     def detector(self, numors, com=False, fit=False,
                  plot=True, vmax=10, savefig=False,
-                 use_distortion_corr=False):
+                 use_distortion_corr=True):
 
         roic = '#F012BE'
         self.load(numors)
@@ -646,7 +646,7 @@ class irixs:
             x,y,ns = [],[],[]
             for n in numor:
                 a = self.runs[n]
-                if a is None or a['img'] is None:
+                if a is None or 'img' not in a or a['img'] is None:
                     continue
                 if a['auto'] not in ['rixs_ener','dcm_ener','exp_dmy01']:
                     continue
