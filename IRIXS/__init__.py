@@ -25,6 +25,7 @@ defs = {
 }
 
 PIX_EN_CONV = 13.5E-6
+SR_LIMIT = 50
 
 #### Matplotlib Settings ######################################################
 
@@ -418,13 +419,17 @@ class irixs:
                 m1, m2, pnt, t = [float(c) for c in command[2:]]
             except:
                 continue
-            out += '#{0:<4}{1:>13} '.format(numor,motor)
+            if np.any(a['data']['sr_current']<SR_LIMIT):
+                dump = '*'
+            else:
+                dump = ' '
+            out += '#{0:<4}{1}{2:>13} '.format(numor,dump,motor)
             if motor in ['rixs_ener']:
                 out += '{0:>+6.2f} > {1:+4.2f}'.format(m1, m2)
             else:
                 if only_rixs:
                     continue
-                out += ' {0:<12}'.format('')
+                out += ' {0:<13}'.format('')
             out += ' {0:3.0f}pnt {1:4.0f}s  '.format(pnt, t)
             out += '{0:7.1f}eV'.format(a["dcm_ener"])
             if a["dcm_ener"] != a["rixs_ener"]:
@@ -631,7 +636,7 @@ class irixs:
                     plt.savefig(savename, dpi=300)
 
 
-    def condition(self, bins, numors, fit=False,
+    def condition(self, bins, numors, fit=False, drop_beamdump=False,
                   photon_counting=False, use_distortion_corr=True):
 
         self.load(numors)
@@ -657,7 +662,10 @@ class irixs:
                 if photon_counting:
                     xinit = np.tile(xinit,(roix[1]-roix[0],1)).T
 
-                for ef, img in zip(a['EF'],a['img']):
+                for ef, img, sr in zip(a['EF'],a['img'],a['data']['sr_current']):
+                    
+                    if drop_beamdump and sr < SR_LIMIT:
+                        continue
 
                     img = deepcopy(img[:,roix[0]:roix[1]])
 
