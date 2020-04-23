@@ -226,8 +226,8 @@ class irixs:
     def __init__(self, exp,
                  y0=None, roix=[0,2048], roiy=[0,2048], roih=None,
                  threshold=1010, cutoff=1800, detfac=935,
-                 photon_factor = 750, E0=None, analyser=None, datdir=None,
-                 photon_event_threshold=400, photon_max_events=0):
+                 photon_factor=750, E0=None, analyser=None, datdir=None,
+                 photon_counting=False, photon_event_threshold=400, photon_max_events=0):
         '''
         datdir -- define datdir to work locally
         exp -- experiment title / data filename prefix
@@ -241,6 +241,7 @@ class irixs:
         detfac -- andor detector factor (0 if andor bgnd sub is enabled, 935 otherwise)
         analyser -- analyser crystal lattice and reflection
         photon_factor -- conversion between detector intensitiy and photon count (should be = 788)
+        photon_counting -- enable photon counting mode
         photon_event_threshold -- threshold intensity for a contigous detector event
         photon_max_events -- maximum multiple events to correct for (0 to disable correction)
         '''
@@ -258,6 +259,8 @@ class irixs:
         self.cutoff = cutoff
         self.detfac = detfac
         self.photon_factor = photon_factor
+
+        self.photon_counting = photon_counting
         self.event_min = photon_event_threshold
         self.max_events = photon_max_events
 
@@ -636,8 +639,8 @@ class irixs:
                     plt.savefig(savename, dpi=300)
 
 
-    def condition(self, bins, numors, fit=False, drop_beamdump=False,
-                  photon_counting=False, use_distortion_corr=True):
+    def condition(self, bins, numors, fit=False,
+                  use_distortion_corr=True, drop_beamdump=False):
 
         self.load(numors)
         if isinstance(numors, int):
@@ -659,7 +662,7 @@ class irixs:
 
                 roix, roiy, y0 = a['roix'], a['roiy'], a['y0']
                 xinit = np.arange(roiy[0], roiy[1])
-                if photon_counting:
+                if self.photon_counting:
                     xinit = np.tile(xinit,(roix[1]-roix[0],1)).T
 
                 for ef, img, sr in zip(a['EF'],a['img'],a['data']['sr_current']):
@@ -674,7 +677,7 @@ class irixs:
                             img[:,c1:c2] = np.roll(img[:,c1:c2],sh,axis=0)
 
                     img  = img[roiy[0]:roiy[1]]
-                    if photon_counting:
+                    if self.photon_counting:
                         lbl,nlbl = scipy.ndimage.label(img)
                         try:
                             yi = scipy.ndimage.labeled_comprehension(img,lbl,range(1,nlbl+1),
@@ -728,7 +731,7 @@ class irixs:
             header+= 'E0_ypixel: {0}\n'.format(y0)
             header+= 'E0_offset: {0}\n'.format(en)
 
-            if photon_counting:
+            if self.photon_counting:
                 savefile = '{0}/{1}_pc_{2:05d}.txt'.format(self.savedir_dat, self.exp, n)
             else:
                 savefile = '{0}/{1}_{2:05d}.txt'.format(self.savedir_dat, self.exp, n)            
@@ -736,7 +739,7 @@ class irixs:
                         header=header+'\n{0:>24}{1:>24}'.format(a['auto'],'counts'))
 
             y = y / self.photon_factor
-            if photon_counting and self.max_events:
+            if self.photon_counting and self.max_events:
                 x = np.delete(x,np.where(y>self.max_events+0.5))
                 y = np.delete(y,np.where(y>self.max_events+0.5))
                 for i in range(self.max_events,1,-1):
@@ -751,7 +754,7 @@ class irixs:
                 y = y[np.argsort(x)]
                 x = np.sort(x)
             if bins:
-                x, y, e = binning(x, y, bins, photon_counting)
+                x, y, e = binning(x, y, bins, self.photon_counting)
             else:
                 e = np.sqrt(y)
             y[~np.isfinite(y)] = 0
