@@ -339,14 +339,17 @@ class irixs:
                 try:
                     y0 = self.y0[n]
                 except KeyError:
-                    print('#{0:<4} -- y0 not given'.format(n))
-                    continue
+                    try:
+                        y0 = self.y0fb
+                    except AttributeError:
+                        print('#{0:<4} -- y0 not given'.format(n))
+                        continue
             else:
                 y0 = self.y0
             if self.roih:
                 try:
                     roiy = [y0+self.roih[0], y0+self.roih[1]]
-                except IndexError:
+                except IndexError: 
                     roiy = [y0-self.roih//2, y0+self.roih//2]
             else:
                 roiy = self.roiy
@@ -458,13 +461,14 @@ class irixs:
 
     def detector(self, numors, com=False, fit=False,
                  plot=True, vmax=10, savefig=False,
-                 use_distortion_corr=True):
+                 use_distortion_corr=True, oneshot=None):
 
         roic = '#F012BE'
         self.load(numors)
 
         if not isinstance(numors,(list,tuple,range)):
             numors = [numors]
+        
         for numor in numors:
             a = self.runs[numor]
             if a is None or a['img'] is None:
@@ -474,11 +478,12 @@ class irixs:
                        self.savedir_det, self.exp, numor)
 
             step, roix, roiy, y0 = a['auto'], a['roix'], a['roiy'], a['y0']
-            if step == 'exp_dmy01':
-                oneshot = True
-                com = False
-            else:
-                oneshot = False
+            
+            if oneshot is None:
+                if step == 'exp_dmy01':
+                    oneshot = True
+                else:
+                    oneshot = False
 
             x = []
             y = []
@@ -516,7 +521,7 @@ class irixs:
                         comH.append(ch)
                 x, y = np.array(x), np.array(y)
 
-            a['xd'], a['yd'] = x, y
+            a['x'], a['y'], a['e'] = x, y, False
             a['label'] = '{}'.format(numor)
 
             header = 'experiment: {0}\n'.format(self.exp)
@@ -545,7 +550,7 @@ class irixs:
 
             if fit:
                 try:
-                    a['xfd'], a['yfd'], a['pd'] = peak_fit(x, y)
+                    a['xf'], a['yf'], a['p'] = peak_fit(x, y)
                     report  = '#{0:<4} (det)  '.format(numor)
                     report += 'cen:{0:.4f}   '.format(a['pd'][2])
                     report += 'amp:{0:.2f}   '.format(a['pd'][0])
@@ -554,9 +559,12 @@ class irixs:
                     report += 'bg:{0:.3f}'.format(a['pd'][3])
                     print(report)
                 except:
-                    a['pd'] = False
+                    a['p'] = False
             else:
-                a['pd'] = False
+                a['p'] = False
+
+            a['oneshot'] = oneshot
+            a.pop('E0',None)
 
             if plot:
                 if com:
@@ -602,22 +610,22 @@ class irixs:
                     ax[1].ticklabel_format(axis='y', style='sci', scilimits=(0, 0))
                     ax[1].set_title('Counts in ROI')
 
-                if a['pd'] is not False:
-                    ax[1].plot(a['xfd'], a['yfd'],
+                if a['p'] is not False:
+                    ax[1].plot(a['xf'], a['yf'],
                                color='#001F3F', dashes=(2,8), lw=0.5)
                     fr = 'fwhm: {:.3f}\ncen: {:.2f}'.format(
-                         a['pd'][1]*2,a['pd'][2])
+                         a['p'][1]*2,a['p'][2])
                     ax[1].text(0.025, 0.975, fr, va='top',
                                transform=ax[1].transAxes,
                                fontsize='small', linespacing=1.3)
 
                 if com:
-                    ax[2].plot(a['xd'], a['comH'], lw=1, color='#0074D9')
+                    ax[2].plot(a['x'], a['comH'], lw=1, color='#0074D9')
                     ax[2].set_title('Horizontal COM')
                     ax[2].set_ylabel('x-pixel')
                     ax[2].set_ylim(roix[0], roix[1])
 
-                    ax[3].plot(a['xd'], a['comV'], lw=1, color='#FF4136')
+                    ax[3].plot(a['x'], a['comV'], lw=1, color='#FF4136')
                     ax[3].set_title('Vertical COM')
                     ax[3].set_ylabel('y-pixel')
                     ax[3].set_ylim(roiy[0], roiy[1])
@@ -709,7 +717,9 @@ class irixs:
             else:
                 en = self.E0
             x -= en
+            
             a['E0'] = en
+            a.pop('oneshot',None)
 
             header = 'experiment: {0}\n'.format(self.exp)
             header+= 'run: {0}\n'.format(n)
@@ -788,7 +798,7 @@ class irixs:
              norm=False, ysca=None, ystp=0, yoff=None, xoff=None,
              show_fit=True, stderr=False, cmap=None, fmt='-', lw=1,
              vline=[0], leg=0, title=None, savefig=True,
-             plot_det=False, xlim=None, ylim=None):
+             xlim=None, ylim=None):
 
         if not isinstance(numors,(list,tuple,range)):
             numors = [numors]
@@ -816,15 +826,10 @@ class irixs:
         for i, a in enumerate(runs):
 
             xf, yf, p = False, False, False
-            if 'x' in a and not plot_det:
+            if 'x' in a:
                 x, y, e = deepcopy(a['x']), deepcopy(a['y']), deepcopy(a['e'])
                 if a['p'] is not False:
                     xf, yf, p = a['xf'], a['yf'], a['p']
-            elif 'xd' in a and plot_det:
-                x, y = deepcopy(a['xd']), deepcopy(a['yd'])
-                e = False
-                if a['pd'] is not False:
-                    xf, yf, p = a['xfd'], a['yfd'], a['pd']
             else:
                 print('#{0}: nothing to plot'.format(a['numor']))
                 continue
@@ -889,8 +894,9 @@ class irixs:
                     label += ' {}: {}'.format(step, a[step])
 
             l, = ax.plot(x, y+i*ystp, fmt, color=c, lw=lw, label=label)
-            if stderr and not plot_det and not norm:
-                ax.errorbar(x,y+i*ystp,e,fmt='none',color=l.get_color(),lw=lw)
+            
+            if stderr and e and not norm:
+                ax.errorbar(x, y+i*ystp, e, fmt='none', color=l.get_color(), lw=lw)
 
             if show_fit and p is not False:
                 amp, sig, cen, fra, bgnd = p
@@ -912,8 +918,10 @@ class irixs:
         else:
             ax.set_ylabel('Intensity')
         
-        if 'x' in a:
+        if 'E0' in a:
             ax.set_xlabel('Energy Transfer (eV)')
+        elif a['oneshot']:
+            ax.set_xlabel('y-pixel')
         else:
             ax.set_xlabel(a['auto'])
 
@@ -924,8 +932,8 @@ class irixs:
                 ncol = 1
             ax.legend(loc=leg, handlelength=1.5, labelspacing=0.3, handletextpad=0.5,
                         ncol=ncol, fontsize='small')
-       
-        if plot_det:
+        
+        if 'E0' not in a:
             vline = False
         if vline is not False:
             if not isinstance(vline,(tuple,list)):
