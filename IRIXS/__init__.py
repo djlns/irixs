@@ -187,7 +187,7 @@ def load_fio(run, exp, datdir):
             a['T'] = 0.0
 
         a['command'] = command
-        a['date'] = date[:-9].strip()
+        a['date'] = date.strip()
         a['time'] = float(command[-1])
         a['numor'] = run
         a['complete'] = complete
