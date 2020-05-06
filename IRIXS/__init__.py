@@ -526,6 +526,7 @@ class irixs:
 
             header = 'experiment: {0}\n'.format(self.exp)
             header+= 'run: {0}\n'.format(numor)
+            header+= 'date: {}\n'.format(a['date'])
             header+= 'command: {0}\n'.format(' '.join(a['command']))
             header+= 'dcm_ener: {0}\n'.format(a['dcm_ener'])
             header+= 'rixs_ener: {0}\n'.format(a['rixs_ener'])
@@ -723,6 +724,7 @@ class irixs:
 
             header = 'experiment: {0}\n'.format(self.exp)
             header+= 'run: {0}\n'.format(n)
+            header+= 'date: {}\n'.format(a['date'])
             header+= 'command: {0}\n'.format(' '.join(a['command']))
             header+= 'dcm_ener: {0}\n'.format(a["dcm_ener"])
             header+= 'rixs_ener: {0}\n'.format(a["rixs_ener"])
