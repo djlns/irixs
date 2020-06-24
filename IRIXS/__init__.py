@@ -218,6 +218,9 @@ def load_tiff(run, no, exp, datdir, localdir):
                 return
     return img
 
+def flatten(*n):
+    return [e for a in n for e in 
+                (flatten(*a) if isinstance(a, (tuple, list, range)) else (a,))]
 
 #### Processing Routine #######################################################
 
@@ -294,12 +297,7 @@ class irixs:
 
         if not isinstance(numors, (list, tuple, range)):
             numors = [numors]
-        if isinstance(numors, range):
-            numors = list(numors)
-
-        flatten = lambda *n: (e for a in n
-            for e in (flatten(*a) if isinstance(a, (tuple, list)) else (a,)))
-        numors = list(flatten(numors))
+        numors = flatten(numors)
 
         for n in numors:
             if n not in self.runs.keys():
