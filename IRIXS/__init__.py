@@ -218,6 +218,7 @@ def load_tiff(run, no, exp, datdir, localdir):
                 return
     return img
 
+
 def flatten(*n):
     return [e for a in n for e in 
                 (flatten(*a) if isinstance(a, (tuple, list, range)) else (a,))]
