@@ -1,9 +1,14 @@
 from setuptools import setup
 
+with open('README.md') as readme_file:
+    README = readme_file.read()
+
 setup(
     name='IRIXS',
     version='0.5.1',
     description='P01 IRIXS reduction routines',
+    long_description=README,
+    long_description_content_type="text/markdown",
     url='http://github.com/djlns/irixs',
     author='Joel Bertinshaw',
     author_email='djlns@posteo.net',
