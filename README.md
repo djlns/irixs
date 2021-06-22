@@ -4,7 +4,7 @@ Scripts for analysis of data collected on the IRIXS spectrometer, Beamline P01, 
 
 ## Overview
 
-`irixs.irixs`: reduction class for the Rowland circle spectrometer
+`irixs.irixs`: reduction class for the Rowland circle spectrometer  
 `irixs.spectrograph`: reduction class for spectrograph
 - extracts raw collected images, transforms them into spectra and loads them to text files for analysis.
 - basic plotting and fitting functionality
@@ -40,5 +40,5 @@ a.plot(spectra_runs, ax=ax)
 
 ## License
 
-Copyright (C) Max Planck Institute for Solid State Research 2019-2021
+Copyright (C) Max Planck Institute for Solid State Research 2019-2021  
 MIT License
