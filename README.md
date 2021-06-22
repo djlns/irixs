@@ -4,25 +4,29 @@ Scripts for analysis of data collected on the IRIXS spectrometer, Beamline P01, 
 
 ## Overview
 
-`irixs.irixs`: reduction class for the Rowland circle spectrometer  
-`irixs.spectrograph`: reduction class for spectrograph
+### Reduction Classes
+`IRIXS.irixs`: reduction class for the Rowland circle spectrometer  
+`IRIXS.spectrograph`: reduction class for spectrograph
 - extracts raw collected images, transforms them into spectra and loads them to text files for analysis.
 - basic plotting and fitting functionality
 
-`P01PLOT`: standalone GUI program for quick plotting and fitting for experiments on P01 and P09
+### Applications
+`P01PLOT`: GUI application for quick plotting and fitting for experiments on P01 and P09  
+`oneshot`: check detector images from a specific measurement
 
 ## Installation
 
 `pip install irixs`
 
+Environment: Python 3.8+ with numpy + scipy + matplotlib + skimage + PyQT5
+
 ## Usage
 
-To run P01PLOT simply run `P01PLOT` from a terminal
-
-Example reduction script for `irixs.irixs`
+### IRIXS.irixs
+Example reduction script for `IRIXS.irixs`
 
 ```python
-from irixs import irixs
+from IRIXS import irixs
 
 expname = 'irixs_11009137'
 a = irixs(expname, y0=667, roix=[160, 1500], roih=[-200, 200])
@@ -36,6 +40,24 @@ a.condition(0.02, spectra_runs)
 fig, ax = plt.subplots()
 a.plot(elastic_runs, ax=ax)
 a.plot(spectra_runs, ax=ax)
+```
+
+### IRIXS.spectrograph
+Example reduction script for `IRIXS.spectrograph`
+
+### P01PLOT
+```
+p01plot [directory] [--remote -r] [--help -h]
+directory : location to look for .fio data files
+            defaults to /gpfs/current/raw, then current directory
+--remote : remove cursor to speed up remote connections
+--help : show this menu
+```
+
+### oneshot
+
+```
+oneshot [number of run]
 ```
 
 ## License
