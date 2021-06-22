@@ -33,7 +33,7 @@ spectra_runs = [1710, 1711, 1712, 1722, 1723]
 a.condition(0.006, elastic_runs, fit=True)
 a.condition(0.02, spectra_runs)
 
-fig, ax = plt.subplots)
+fig, ax = plt.subplots()
 a.plot(elastic_runs, ax=ax)
 a.plot(spectra_runs, ax=ax)
 ```
@@ -41,4 +41,4 @@ a.plot(spectra_runs, ax=ax)
 ## License
 
 Copyright (C) Max Planck Institute for Solid State Research 2019-2021  
-MIT License
+GNU General Public License v3.0
