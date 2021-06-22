@@ -80,7 +80,6 @@ def load_fio(run, exp, datdir):
     if head and data:
         data = [x for x in data if x]
         data = np.array(data)
-        pnts = data.shape[0]
         data = data.view(dtype=[(n, float) for n in head])
         data = data.reshape(len(data))
         a['data'] = data
@@ -173,8 +172,7 @@ def detector(run, exp, datdir, vmax=10, threshold=1010, cutoff=1800, detfac=935)
     fig, ax = plt.subplots(1, 2, figsize=(8.5, 4))
     fig.subplots_adjust(0.06, 0.15, 0.98, 0.93)
 
-    plt.suptitle('#{}'.format(run), ha='left', va='top',
-                x=0.005, y=0.995)
+    plt.suptitle(f'#{run}', ha='left', va='top', x=0.005, y=0.995)
 
     im = ax[0].imshow(imtotal, origin='lower', vmax=vmax,
                       cmap=plt.get_cmap('bone_r'),
