@@ -15,7 +15,7 @@ Scripts for analysis of data collected on the IRIXS spectrometer, Beamline P01, 
 
 ### Scripts
 `p01plot`: GUI application for quick plotting and fitting for experiments on P01 and P09  
-`oneshot`: check detector images from a specific measurement
+`irixs_oneshot`: check detector images from a specific measurement
 
 ## Installation
 
@@ -55,7 +55,7 @@ a.plot(spectra_runs, ax=ax)
 ### IRIXS.spectrograph
 Example reduction script for `IRIXS.spectrograph` todo
 
-### P01PLOT
+### p01plot
 ```
 p01plot [directory] [--remote -r] [--help -h]
 directory : location to look for .fio data files
@@ -64,10 +64,10 @@ directory : location to look for .fio data files
 --help : show this menu
 ```
 
-### oneshot
+### irixs_oneshot
 
 ```
-oneshot [number of run]
+irixs_oneshot [number of run]
 ```
 
 ## License

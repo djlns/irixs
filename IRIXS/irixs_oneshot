@@ -2,7 +2,7 @@
 
 """ quick view of detector images for a specified measurement
 
-usage: oneshot.py [number of run]
+usage: irixs_oneshot [number of run]
 
 """
 
@@ -238,7 +238,7 @@ if __name__ == "__main__":
     try:
         run = int(sys.argv[1])
     except (IndexError, ValueError):
-        print("oneshot.py [number of run]")
+        print("irixs_oneshot [number of run]")
         sys.exit(2)
     exp, datdir = find_run(run)
     if exp:

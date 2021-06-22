@@ -5,7 +5,7 @@ with open('README.md') as readme_file:
 
 setup(
     name='IRIXS',
-    version='0.5.1',
+    version='0.5.2',
     description='P01 IRIXS reduction routines',
     long_description=README,
     long_description_content_type="text/markdown",
@@ -24,7 +24,7 @@ setup(
     packages=['IRIXS'],
     scripts=[
         'IRIXS/p01plot',
-        'IRIXS/oneshot'
+        'IRIXS/irixs_oneshot'
     ],
     classifiers=[
         'Development Status :: 4 - Beta',
