@@ -2,6 +2,9 @@
 
 Scripts for analysis of data collected on the IRIXS spectrometer, Beamline P01, Synchrotron Petra-III, DESY
 
+[IRIXS: a resonant inelastic X-ray scattering instrument dedicated to X-rays in the intermediate energy range](https://doi.org/10.1107/S1600577519017119)  
+[IRIXS Spectrograph: an ultra high-resolution spectrometer for tender RIXS](https://doi.org/10.1107/S1600577521003805)
+
 ## Overview
 
 ### Reduction Classes
@@ -10,15 +13,22 @@ Scripts for analysis of data collected on the IRIXS spectrometer, Beamline P01, 
 - extracts raw collected images, transforms them into spectra and loads them to text files for analysis.
 - basic plotting and fitting functionality
 
-### Applications
-`P01PLOT`: GUI application for quick plotting and fitting for experiments on P01 and P09  
+### Scripts
+`p01plot`: GUI application for quick plotting and fitting for experiments on P01 and P09  
 `oneshot`: check detector images from a specific measurement
 
 ## Installation
 
-`pip install irixs`
+Environment: Python 3.8+ w/ scipy + matplotlib + scikit-image + PyQT5
 
-Environment: Python 3.8+ with numpy + scipy + matplotlib + skimage + PyQT5
+from PyPI:
+1. `pip install IRIXS`
+
+To symlink to the source folder instead:
+1. Clone repository to prefered location
+2. Enter root directory
+3. `pip install -e .`
+
 
 ## Usage
 
@@ -43,7 +53,7 @@ a.plot(spectra_runs, ax=ax)
 ```
 
 ### IRIXS.spectrograph
-Example reduction script for `IRIXS.spectrograph`
+Example reduction script for `IRIXS.spectrograph` todo
 
 ### P01PLOT
 ```
