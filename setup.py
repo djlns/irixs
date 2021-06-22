@@ -5,7 +5,7 @@ with open('README.md') as readme_file:
 
 setup(
     name='IRIXS',
-    version='0.5.2',
+    version='0.5.3',
     description='P01 IRIXS reduction routines',
     long_description=README,
     long_description_content_type="text/markdown",
@@ -13,7 +13,7 @@ setup(
     author='Joel Bertinshaw',
     author_email='djlns@posteo.net',
     license='GNU GPLv3',
-    install_requirements=[
+    install_requires=[
         'numpy>=1.18',
         'matplotlib>=3.1',
         'scipy>=1.4',
