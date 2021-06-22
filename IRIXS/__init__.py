@@ -1,2 +1,2 @@
-from .rowland import irixs
-from .spectrograph import spectrograph
+from .instrument_rowland import irixs
+from .instrument_spectrograph import spectrograph
