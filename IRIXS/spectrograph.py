@@ -1,3 +1,5 @@
+""" reduction class for spectrograph """
+
 import os
 import shutil
 import copy
