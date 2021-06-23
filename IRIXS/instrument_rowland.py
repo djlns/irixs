@@ -154,7 +154,7 @@ class irixs:
 
         self.corr_shift = False  # distortion correction
 
-    def load(self, runs, tiff=True):
+    def load(self, run_nos, tiff=True):
         """
         load data & parameters from fio and tiff files
         - stores runs as dicts in the self.runs dict
@@ -168,15 +168,15 @@ class irixs:
         tiff -- only load image data if True
         """
 
-        if not isinstance(runs, (list, tuple, range)):
-            runs = [runs]
-        runs = flatten(runs)
+        if not isinstance(run_nos, (list, tuple, range)):
+            run_nos = [run_nos]
+        run_nos = flatten(run_nos)
 
-        for n in runs:
+        for n in run_nos:
             if n not in self.runs.keys():
                 self.runs[n] = None
 
-        for n in runs:
+        for n in run_nos:
             if self.runs[n] and self.runs[n]["complete"]:
                 continue
             path = "{0}/{1}_{2:05d}.fio".format(self.datdir, self.exp, n)
@@ -199,7 +199,7 @@ class irixs:
         to = self.threshold - self.detfac
         co = self.cutoff - self.detfac
 
-        for n in runs:
+        for n in run_nos:
 
             a = self.runs[n]
             if not a:
@@ -264,7 +264,7 @@ class irixs:
         self,
         nstart=None,
         nend=None,
-        runs=None,
+        run_nos=None,
         extras=["th"],
         hkl=False,
         date=False,
@@ -280,8 +280,8 @@ class irixs:
         extras,hkl,date -- extra parameters to display
         only_rixs -- only tabulate rixs runs
         """
-        if not nstart and not runs:
-            runs = self.runs.keys()
+        if not nstart and not run_nos:
+            run_nos = self.runs.keys()
         if nstart:
             if nend is None:
                 try:
@@ -296,16 +296,16 @@ class irixs:
                     )
                 try:
                     latest = latest[:-4].split("_")[-1]
-                    runs = range(runs, int(latest) + 1)
+                    runs = range(run_nos, int(latest) + 1)
                 except ValueError:
                     return
             runs = range(nstart, nend + 1)
 
-        self.load(runs, False)
+        self.load(run_nos, False)
 
-        for run in runs:
+        for run_no in run_nos:
             out = ""
-            a = self.runs[run]
+            a = self.runs[run_no]
             if a is None:
                 continue
             try:
@@ -318,7 +318,7 @@ class irixs:
                 dump = "*"
             else:
                 dump = " "
-            out += "#{0:<4}{1}{2:>13} ".format(run, dump, motor)
+            out += "#{0:<4}{1}{2:>13} ".format(run_no, dump, motor)
             if motor in ["rixs_ener"]:
                 out += "{0:>+6.2f} > {1:+4.2f}".format(m1, m2)
             else:
@@ -349,7 +349,7 @@ class irixs:
 
     def detector(
         self,
-        runs,
+        run_nos,
         oneshot=None,
         fit=False,
         plot=True,
@@ -371,18 +371,18 @@ class irixs:
         vmax -- colormap threshold (10 is pretty good in most cases)
         """
         roic = "#F012BE"
-        self.load(runs)
+        self.load(run_nos)
 
-        if not isinstance(runs, (list, tuple, range)):
-            runs = [runs]
+        if not isinstance(run_nos, (list, tuple, range)):
+            run_nos = [run_nos]
 
-        for run in runs:
-            a = self.runs[run]
+        for run_no in run_nos:
+            a = self.runs[run_no]
             if a is None or a["img"] is None:
                 continue
 
             savefile = "{0}/{1}_{2:05d}_det.txt".format(
-                self.savedir_det, self.exp, run
+                self.savedir_det, self.exp, run_no
             )
 
             step, roix, roiy, y0 = a["auto"], a["roix"], a["roiy"], a["y0"]
@@ -430,10 +430,10 @@ class irixs:
                 x, y = np.array(x), np.array(y)
 
             a["x"], a["y"], a["e"] = x, y, False
-            a["label"] = "{}".format(run)
+            a["label"] = run_no
 
             header = "experiment: {0}\n".format(self.exp)
-            header += "run: {0}\n".format(run)
+            header += "run: {0}\n".format(run_no)
             header += "date: {}\n".format(a["date"])
             header += "command: {0}\n".format(" ".join(a["command"]))
             header += "dcm_ener: {0}\n".format(a["dcm_ener"])
@@ -572,7 +572,7 @@ class irixs:
                     plt.savefig(savename, dpi=300)
 
     def condition(
-        self, bins, runs, fit=False, use_distortion_corr=True, drop_beamdump=False
+        self, bins, run_nos, fit=False, use_distortion_corr=True, drop_beamdump=False
     ):
         """
         main data reduction routine, returns signal vs energy
@@ -589,17 +589,17 @@ class irixs:
         use_distortion_correction -- run calc_distortion to determine correction first
         drop_beamdump -- ignore runs measured during a beamdump
         """
-        self.load(runs)
-        if isinstance(runs, int):
-            runs = [runs]
+        self.load(run_nos)
+        if isinstance(run_nos, int):
+            run_nos = [run_nos]
 
-        for run in runs:
+        for run_no in run_nos:
 
-            if isinstance(run, int):
-                run = [run]
+            if isinstance(run_no, int):
+                run_no = [run_no]
 
             x, y, ns = [], [], []
-            for n in run:
+            for n in run_no:
                 a = self.runs[n]
                 if a is None or "img" not in a or a["img"] is None:
                     continue
@@ -748,7 +748,7 @@ class irixs:
 
     def plot(
         self,
-        runs,
+        run_nos,
         ax=None,
         step="run",
         labels=None,
@@ -772,12 +772,12 @@ class irixs:
         ylim=None,
     ):
 
-        if not isinstance(runs, (list, tuple, range)):
-            runs = [runs]
+        if not isinstance(run_nos, (list, tuple, range)):
+            run_nos = [run_nos]
 
-        runs = [n[0] if isinstance(n, list) else n for n in runs]
+        run_nos = [n[0] if isinstance(n, list) else n for n in run_nos]
         runs = [
-            self.runs[n] for n in runs if n in self.runs and self.runs[n] is not None
+            self.runs[n] for n in run_nos if n in self.runs and self.runs[n] is not None
         ]
         if not runs:
             return
@@ -937,13 +937,13 @@ class irixs:
 
         if savefig:
             if not isinstance(savefig, str):
-                sc = "_".join(str(n) for n in runs)
+                sc = "_".join(str(n) for n in run_nos)
                 savefig = "s{}_{}".format(sc, a["auto"])
             plt.savefig("{}/{}.pdf".format(self.savedir_fig, savefig), dpi=300)
 
     def check_run(
         self,
-        run,
+        run_no,
         hist=False,
         no=0,
         vmin=0,
@@ -954,7 +954,7 @@ class irixs:
 
         """Step through each detector image of a run.
         run -- run number
-        run -- starting step number (default is the first)
+        no -- starting step number (default is the first)
         hist -- plot histogram rather than detector map
         vmin -- colourmap minimum
         vmax -- colourmap maximum
@@ -962,8 +962,8 @@ class irixs:
         photon_counting -- check photon counting algorithm
         """
 
-        self.load(run)
-        a = self.runs[run]
+        self.load(run_no)
+        a = self.runs[run_no]
 
         pnts = a["pnts"]
         to = a["threshold"] - a["detfac"]

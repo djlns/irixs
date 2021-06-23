@@ -411,7 +411,7 @@ class spectrograph:
         if fit:
             try:
                 xf, yf, p = peak_fit(x, y)
-                r = '#{0}  '.format(a['numor'])
+                r = '#{0}  '.format(a['no'])
                 r += 'cen:{0:.4f}   '.format(p[2])
                 r += 'amp:{0:.2f}   '.format(p[0])
                 r += 'sig:{0:.4f}   '.format(p[1])
@@ -422,7 +422,7 @@ class spectrograph:
             except:
                 pass
 
-        header = f"run: {a['numor']}\nexp: {self.exp}\nbins: {bins}\n"
+        header = f"run: {a['no']}\nexp: {self.exp}\nbins: {bins}\n"
         if oneshot_x:
             header += "      y-pixel       intensity"
         elif oneshot_y:
@@ -430,7 +430,7 @@ class spectrograph:
         else:
             header += f"{a['auto']}    Intensity"
         np.savetxt(
-            os.path.join(self.savedir, f"{self.exp}_{a['numor']}_b{bins}.dat"),
+            os.path.join(self.savedir, f"{self.exp}_{a['no']}_b{bins}.dat"),
             np.array([x, y]).T,
             fmt="% .8e",
             header=header
@@ -517,7 +517,7 @@ class spectrograph:
 
         ax.legend(fontsize='small')
 
-    def track_signal(self, run, fit=True, bins=None, maxsig=1200, vert=False, title='numor',
+    def track_signal(self, run, fit=True, bins=None, maxsig=1200, vert=False, title='no',
                      plot=True, plot_trend=False, ystep=0):
 
         a = self.runs[run]
@@ -531,8 +531,8 @@ class spectrograph:
             r = ry
             im = imgy
 
-        txt_title = f'#{a["numor"]}'
-        if title != 'numor':
+        txt_title = f'#{a["no"]}'
+        if title != 'no':
             txt_title += f' {title}: {a[title]}'
 
         if plot:
