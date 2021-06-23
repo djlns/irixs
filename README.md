@@ -24,8 +24,12 @@ Environment: Python 3.8+ w/ scipy + matplotlib + scikit-image + PyQT5
 from PyPI:
 1. `pip install IRIXS`
 
+If using an anaconda/miniconda distribution, it is suggested to install dependencies separately:
+1. `pip install IRIXS --no-deps`
+2. then e.g. `conda install pyqt`
+
 To symlink to the source folder instead:
-1. Clone repository to prefered location
+1. Clone repository to a prefered location
 2. Enter root directory
 3. `pip install -e .`
 
