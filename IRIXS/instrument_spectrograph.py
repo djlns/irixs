@@ -32,15 +32,15 @@ def bias_correct_4output(rawimg):
     return img
 
 
-def load_tiff(filename, run, exp, datdir, localdir, correct=True):
+def load_tiff(filename, run_no, exp, datdir, localdir, correct=True):
     """ load greateyes detector tiff file
     correct - correct for bias of 4 quadrants when using EFGH output
     """
-    tiffpath = '{dir}/{exp}_{run:05d}/greateyes/{filename}'
-    path = tiffpath.format(dir=datdir, exp=exp, run=run, filename=filename)
+    tiffpath = '{dir}/{exp}_{run_no:05d}/greateyes/{filename}'
+    path = tiffpath.format(dir=datdir, exp=exp, run_no=run_no, filename=filename)
     with warnings.catch_warnings():
         if localdir:
-            path2 = tiffpath.format(dir=localdir, exp=exp, run=run, filename=filename)
+            path2 = tiffpath.format(dir=localdir, exp=exp, run_no=run_no, filename=filename)
             try:
                 img = io.imread(path2)
             except (Warning, FileNotFoundError, OSError):
@@ -100,33 +100,33 @@ class spectrograph:
 
         self.runs = {}
 
-    def extract(self, runs):
+    def extract(self, run_nos):
 
-        if not isinstance(runs, (list, tuple, range)):
-            runs = [runs]
-        runs = flatten(runs)
+        if not isinstance(run_nos, (list, tuple, range)):
+            run_nos = [run_nos]
+        run_nos = flatten(run_nos)
 
-        for n in runs:
+        for n in run_nos:
             if n not in self.runs.keys():
                 self.runs[n] = None
 
-        for run in runs:
-            if self.runs[n] and self.runs[n]["complete"]:
+        for run_no in run_nos:
+            if self.runs[run_no] and self.runs[run_no]["complete"]:
                 continue
 
-            fio_file = "{0}_{1:05d}.fio".format(self.exp, run)
+            fio_file = "{0}_{1:05d}.fio".format(self.exp, run_no)
             fio_remote = os.path.join(self.datdir, fio_file)
             fio_local = os.path.join(self.localdir, fio_file)
 
             if not os.path.isfile(fio_local):
-                a = load_fio(run, self.exp, self.datdir)
+                a = load_fio(run_no, self.exp, self.datdir)
                 if a and a['complete']:
                     shutil.copyfile(fio_remote, fio_local)
             else:
-                a = load_fio(run, self.exp, self.localdir)
+                a = load_fio(run_no, self.exp, self.localdir)
 
             a["img"] = []
-            print(f"{run}", end="")
+            print(f"{run_no}", end="")
 
             # since we don't have any control over image filename, sort by collection time
             # default to remote folder if it exists
@@ -134,12 +134,12 @@ class spectrograph:
                 img_root = self.datdir
             else:
                 img_root = self.localdir
-            img_folder = os.path.join(img_root, f"{self.exp}_{run:05d}", "greateyes")
+            img_folder = os.path.join(img_root, f"{self.exp}_{run_no:05d}", "greateyes")
             filepaths = sorted(glob(img_folder+'*.tiff'), key=os.path.getctime)
             filenames = [os.path.basename(f) for f in filepaths]
 
         for i,f in enumerate(filenames):
-            img = load_tiff(f, run, self.exp, self.datdir, self.localdir, self.bias_correct)
+            img = load_tiff(f, run_no, self.exp, self.datdir, self.localdir, self.bias_correct)
             if img is not None:
                 img -= self.detfac
                 img[~np.logical_and(img > self.threshold, img < self.cutoff)] = 0
@@ -149,26 +149,26 @@ class spectrograph:
         a['x'] = a['x'][:i+1]  # ensure length of x is same as number of images
         print(f'/{len(a["img"])}')
 
-        self.runs[run] = a
+        self.runs[run_no] = a
 
-    def transform(self, runs, ysca=1, fit=True):
+    def transform(self, run_nos, ysca=1, fit=True):
 
-        self.extract(runs)
-        if not isinstance(runs, (list, tuple, range)):
-            runs = [runs]
+        self.extract(run_nos)
+        if not isinstance(run_nos, (list, tuple, range)):
+            run_nos = [run_nos]
 
-        for run in runs:
+        for run_no in run_nos:
 
-            # sum up images if given a list of runs
-            if isinstance(run, (list, tuple)):
-                a = self.runs[run[0]]
-                img = np.atleast_3d(np.array(a['img'])) / len(run)
-                for r in run[1:]:
+            # sum up images if given a list of run_nos
+            if isinstance(run_no, (list, tuple)):
+                a = self.runs[run_no[0]]
+                img = np.atleast_3d(np.array(a['img'])) / len(run_no)
+                for r in run_no[1:]:
                     b = self.runs[r]
-                    img = img + np.atleast_3d(np.array(b['img'])) / len(run)
+                    img = img + np.atleast_3d(np.array(b['img'])) / len(run_no)
             # single image
             else:
-                a = self.runs[run]
+                a = self.runs[run_no]
                 img = np.atleast_3d(np.array(a['img']))
                 img = img * ysca
 
@@ -234,13 +234,13 @@ class spectrograph:
                 a["xfx"], a["yfx"], a["px"], a["txtx"] = xfx, yfx, px, txtx
                 a["xfy"], a["yfy"], a["py"], a["txty"] = xfy, yfy, py, txty
 
-    def detector(self, run):
+    def detector(self, run_no):
 
-        self.extract(run)
+        self.extract(run_no)
 
-        if "x" not in self.runs[run]:
-            self.transform(run)
-        a = self.runs[run]
+        if "x" not in self.runs[run_no]:
+            self.transform(run_no)
+        a = self.runs[run_no]
 
         fig = plt.figure(figsize=(16.5, 8.5))
         gs0 = fig.add_gridspec(
@@ -257,7 +257,7 @@ class spectrograph:
         ax3 = fig.add_subplot(gs1[1,1])
         ax4 = fig.add_subplot(gs1[2,:])
 
-        fig.canvas.set_window_title(f'#{run}')
+        fig.canvas.set_window_title(f'#{run_no}')
 
         ax1.imshow(
             a["tot"],
@@ -361,7 +361,7 @@ class spectrograph:
 
     def condition(
         self,
-        runs,
+        run_nos,
         bins=None,
         oneshot_x=False,
         oneshot_y=False,
@@ -371,15 +371,15 @@ class spectrograph:
         x0=0
     ):
 
-        if not isinstance(runs, (list, tuple, range)):
-            runs = [runs]
+        if not isinstance(run_nos, (list, tuple, range)):
+            run_nos = [run_nos]
 
-        self.transform(runs)
+        self.transform(run_nos)
 
-        for run in runs:
-            if "x" not in self.runs[run]:
-                self.transform(run)
-            a = self.runs[run]
+        for run_no in run_nos:
+            if "x" not in self.runs[run_no]:
+                self.transform(run_no)
+            a = self.runs[run_no]
 
             if oneshot_x:
                 if oneshot_no:
@@ -438,7 +438,7 @@ class spectrograph:
 
     def plot(
         self,
-        runs,
+        run_nos,
         ax=None,
         motor=None,
         norm=False,
@@ -448,8 +448,8 @@ class spectrograph:
         **kwargs
     ):
 
-        if not isinstance(runs, (list, tuple, range)):
-            runs = [runs]
+        if not isinstance(run_nos, (list, tuple, range)):
+            run_nos = [run_nos]
 
         if not ax:
             if plot_trend:
@@ -468,11 +468,11 @@ class spectrograph:
             ax = axes[0]
 
         trend_x, trend_x0, trend_I, trend_fw = [], [], [], []
-        for i, run in enumerate(runs):
-            a = self.runs[run]
+        for i, run_no in enumerate(run_nos):
+            a = self.runs[run_no]
             x, y = a['cond_x'], a['cond_y']
             if "cond_xf" in a and fit:
-                xf, yf, p, r = a['cond_xf'], a['cond_yf'], a['cond_p'], a['cond_r']
+                xf, yf, p = a['cond_xf'], a['cond_yf'], a['cond_p']
                 if norm:
                     yf = yf/np.max(y)
             else:
@@ -480,13 +480,12 @@ class spectrograph:
             if norm:
                 y = y/np.max(y)
 
-            lab = f"#{run}"
+            lab = f"#{run_no}"
             if motor:
-                runs.append(a[motor])
                 lab += f" {motor}: {a[motor]:.2f}"
 
             if fit and xf:
-                trend_x.append(run)
+                trend_x.append(run_no)
                 trend_x0.append(p[2])
                 trend_fw.append(p[1]*2)
                 trend_I.append(p[0])
@@ -517,10 +516,10 @@ class spectrograph:
 
         ax.legend(fontsize='small')
 
-    def track_signal(self, run, fit=True, bins=None, maxsig=1200, vert=False, title='no',
+    def track_signal(self, run_no, fit=True, bins=None, maxsig=1200, vert=False, title='no',
                      plot=True, plot_trend=False, ystep=0):
 
-        a = self.runs[run]
+        a = self.runs[run_no]
 
         rx, ry, imgx, imgy = a['rx'], a['ry'], a['imgx'], a['imgy']
 
@@ -591,8 +590,9 @@ class spectrograph:
 
             ax[0].text(0.05, 0.95, txt_title, transform=ax[0].transAxes)
 
-        print(txt_title)
-        print(tabulate.tabulate(np.array([range(len(x)),x,I,x0,fw]).T,headers=['no',a['auto'],'intensity','centre','fwhm']))
-        print()
+        # table = np.array([range(len(trend_x)),trend_x, trend_I, trend_x0, trend_fw]).T
+        # print(txt_title)
+        # print(tabulate(table,headers=['no', a['auto'], 'intensity', 'centre', 'fwhm']))
+        # print()
 
         return np.array([trend_x, trend_I, trend_x0, trend_fw])
