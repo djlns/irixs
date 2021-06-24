@@ -5,7 +5,7 @@ with open('README.md') as readme_file:
 
 setup(
     name='IRIXS',
-    version='0.5.3',
+    version='0.5.4',
     description='P01 IRIXS reduction routines',
     long_description=README,
     long_description_content_type="text/markdown",
