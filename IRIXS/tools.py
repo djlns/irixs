@@ -1,6 +1,6 @@
 import os
 import numpy as np
-from numpy import sin, cos, sqrt, log, radians
+from numpy import sin, cos, sqrt, log, radians, arccos, pi
 from scipy.optimize import curve_fit
 
 
@@ -15,8 +15,32 @@ def unit_cell_volume(a1, a2, a3, alpha1, alpha2, alpha3):
     return V
 
 
+def reciprocol_lattice(a1, a2, a3, alpha1, alpha2, alpha3):
+    """calculate reciprocol lattice parameters (angles in radians)"""
+
+    beta1 = arccos(
+        (cos(alpha2) * cos(alpha3) - cos(alpha1)) / (sin(alpha2) * sin(alpha3))
+    )
+
+    beta2 = arccos(
+        (cos(alpha1) * cos(alpha3) - cos(alpha2)) / (sin(alpha1) * sin(alpha3))
+    )
+
+    beta3 = arccos(
+        (cos(alpha1) * cos(alpha2) - cos(alpha3)) / (sin(alpha1) * sin(alpha2))
+    )
+
+    V = unit_cell_volume(a1, a2, a3, alpha1, alpha2, alpha3)
+
+    b1 = 2 * pi * a2 * a3 * sin(alpha1) / V
+    b2 = 2 * pi * a1 * a3 * sin(alpha2) / V
+    b3 = 2 * pi * a1 * a2 * sin(alpha3) / V
+
+    return b1, b2, b3, beta1, beta2, beta3
+
+
 def calc_dspacing(hkl, cell):
-    """calculate dspacing from analyser crystal lattice and orientation"""
+    """calculate dspacing from crystal lattice and orientation"""
     h, k, l = hkl
     a1, a2, a3, alpha1, alpha2, alpha3 = cell
     alpha1, alpha2, alpha3 = radians(alpha1), radians(alpha2), radians(alpha3)
