@@ -430,7 +430,7 @@ class irixs:
                 x, y = np.array(x), np.array(y)
 
             a["x"], a["y"], a["e"] = x, y, False
-            a["label"] = run_no
+            a["label"] = str(run_no)
 
             header = "experiment: {0}\n".format(self.exp)
             header += "run: {0}\n".format(run_no)
@@ -485,7 +485,7 @@ class irixs:
                     fig.subplots_adjust(0.06, 0.15, 0.98, 0.93)
 
                 plt.suptitle(
-                    "#{}".format(a["run"]), ha="left", va="top", x=0.005, y=0.995
+                    "#{}".format(a["label"]), ha="left", va="top", x=0.005, y=0.995
                 )
 
                 im = ax[0].imshow(
@@ -563,11 +563,11 @@ class irixs:
                 if savefig:
                     if savefig is True:
                         savename = "{0}/det_s{1}_{2}.pdf".format(
-                            self.savedir_fig, a["run"], a["auto"]
+                            self.savedir_fig, a["label"], a["auto"]
                         )
                     else:
                         savename = "{0}/{1}_s{2}.pdf".format(
-                            self.savedir_fig, savefig, a["run"]
+                            self.savedir_fig, savefig, a["label"]
                         )
                     plt.savefig(savename, dpi=300)
 
