@@ -1,6 +1,6 @@
-# IRIXS reduction routines
+# IRIXS routines
 
-Scripts for analysis of data collected on the IRIXS spectrometer, Beamline P01, Synchrotron Petra-III, DESY
+Scripts for the IRIXS spectrometer, Beamline P01, Synchrotron Petra-III, DESY
 
 - [IRIXS: a resonant inelastic X-ray scattering instrument dedicated to X-rays in the intermediate energy range](https://doi.org/10.1107/S1600577519017119)  
 - [IRIXS Spectrograph: an ultra high-resolution spectrometer for tender RIXS](https://doi.org/10.1107/S1600577521003805)
@@ -13,7 +13,7 @@ Scripts for analysis of data collected on the IRIXS spectrometer, Beamline P01, 
 - extracts raw collected images, transforms them into spectra and loads them to text files for analysis.
 - basic plotting and fitting functionality
 
-`IRIXS.sixc`: six-circle diffractometer simulator for experiment planning
+`IRIXS.sixc`: six-circle diffractometer simulator class for experiment planning
 
 ### Scripts
 `p01plot`: GUI application for quick plotting and fitting for experiments on P01 and P09  
