@@ -5,7 +5,7 @@ with open('README.md') as readme_file:
 
 setup(
     name='IRIXS',
-    version='0.6.2',
+    version='0.6.3',
     description='Routines for the IRIXS spectrometer',
     long_description=README,
     long_description_content_type="text/markdown",
