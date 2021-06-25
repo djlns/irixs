@@ -7,11 +7,12 @@ Scripts for analysis of data collected on the IRIXS spectrometer, Beamline P01, 
 
 ## Overview
 
-### Reduction Classes
+### Classes
 `IRIXS.irixs`: reduction class for the Rowland circle spectrometer  
 `IRIXS.spectrograph`: reduction class for spectrograph
 - extracts raw collected images, transforms them into spectra and loads them to text files for analysis.
 - basic plotting and fitting functionality
+`IRIXS.sixc`: six-circle diffractometer simulator for experiment planning
 
 ### Scripts
 `p01plot`: GUI application for quick plotting and fitting for experiments on P01 and P09  
@@ -57,7 +58,27 @@ a.plot(spectra_runs, ax=ax)
 ```
 
 ### IRIXS.spectrograph
-Example reduction script for `IRIXS.spectrograph` todo
+todo: example script for `IRIXS.spectrograph`
+
+### IRIXS.sixc
+Example script for `IRIXS.sixc`
+
+```python
+from IRIXS import sixc
+
+# initialise UB-matrix using experimental conditions
+unit_cell = [5.37, 5.60, 19.35, 90, 90, 90]
+ref0 = (0, 0, 4)
+ref1 = (1, 0, 0)
+th0 = 29.85
+tth0 = 53.70
+chi0 = 2.0
+f = sixc(unit_cell, ref0, ref1, th0, tth0, chi0, energy=2838.5)
+
+# print hkl for values from grazing to normal with detector fixed at tth=90
+for th in range(0, 95, 5):
+    print(th, f.hkl(th))
+```
 
 ### p01plot
 ```
