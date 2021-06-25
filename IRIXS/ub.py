@@ -110,6 +110,7 @@ class sixc:
     set_UB(hkl0, hkl1, th0, tth0, chi0)
         Set U orientation Matrix and UB-matrix
     """
+
     def __init__(self, cell, hkl0, hkl1, th0, tth0, chi0, energy=2838.5):
         """
         Parameters
