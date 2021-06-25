@@ -2,7 +2,8 @@
 import numpy as np
 from numpy import pi, sin, cos, radians
 from numpy.linalg import norm, inv, multi_dot
-from tools import reciprocol_lattice
+
+from .tools import reciprocol_lattice
 
 
 def rotation_matricies(mu, nu, chi, eta=0, delta=0, phi=0):
