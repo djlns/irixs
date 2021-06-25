@@ -12,6 +12,7 @@ Scripts for analysis of data collected on the IRIXS spectrometer, Beamline P01, 
 `IRIXS.spectrograph`: reduction class for spectrograph
 - extracts raw collected images, transforms them into spectra and loads them to text files for analysis.
 - basic plotting and fitting functionality
+
 `IRIXS.sixc`: six-circle diffractometer simulator for experiment planning
 
 ### Scripts
