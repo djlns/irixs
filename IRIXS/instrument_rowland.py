@@ -296,10 +296,10 @@ class irixs:
                     )
                 try:
                     latest = latest[:-4].split("_")[-1]
-                    runs = range(run_nos, int(latest) + 1)
+                    run_nos = range(run_nos, int(latest) + 1)
                 except ValueError:
                     return
-            runs = range(nstart, nend + 1)
+            run_nos = range(nstart, nend + 1)
 
         self.load(run_nos, False)
 
@@ -461,7 +461,7 @@ class irixs:
 
             if fit:
                 a["xf"], a["yf"], a["p"] = peak_fit(x, y)
-                report = "#{0:<4} (det)  ".format(run)
+                report = "#{0:<4} (det)  ".format(run_no)
                 report += "cen:{0:.4f}   ".format(a["p"][2])
                 report += "amp:{0:.2f}   ".format(a["p"][0])
                 report += "fwhm:{0:.3f}   ".format(a["p"][1] * 2)
@@ -999,7 +999,7 @@ class irixs:
                 vmax=vmax,
                 interpolation=interp,
             )
-        i["ax"].set_title("#{} no {}".format(run, i["idx"]))
+        i["ax"].set_title("#{} no {}".format(run_no, i["idx"]))
 
         def do_plot(i):
             try:
@@ -1015,7 +1015,7 @@ class irixs:
                 if photon_counting:
                     imdat, _ = scipy.ndimage.label(imdat)
                 i["im"].set_data(imdat)
-            i["ax"].set_title("#{} no {}".format(run, i["idx"]))
+            i["ax"].set_title("#{} no {}".format(run_no, i["idx"]))
             plt.draw()
 
         def press(event):
@@ -1031,11 +1031,14 @@ class irixs:
         fig.canvas.mpl_connect("key_press_event", press)
 
     def calc_distortion(
-        self, run, slices=8, oneshot=True, no=0, plot=False, vmin=0, vmax=10
+        self, run_no, slices=8, oneshot=True, no=0, plot=False, vmin=0, vmax=10
     ):
 
-        self.load(run)
-        a = self.runs[run]
+        self.load(run_no)
+        a = self.runs[run_no]
+        if "img" not in a:
+            print("detector images not loaded")
+            return
 
         if oneshot:
             img = np.atleast_3d(np.array(a["img"]))
