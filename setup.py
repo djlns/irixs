@@ -5,8 +5,8 @@ with open('README.md') as readme_file:
 
 setup(
     name='IRIXS',
-    version='0.5.4',
-    description='P01 IRIXS reduction routines',
+    version='0.6.0',
+    description='routines for the IRIXS spectrometer',
     long_description=README,
     long_description_content_type="text/markdown",
     url='http://github.com/djlns/irixs',
