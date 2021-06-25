@@ -4,21 +4,29 @@ from numpy import sin, cos, sqrt, log, radians
 from scipy.optimize import curve_fit
 
 
+def unit_cell_volume(a, b, c, al, be, ga):
+    """calculate unit cell volume (angles in radians)"""
+    V = (
+        a * b * c *
+        sqrt(1 - cos(al)**2 - cos(be)**2 - cos(ga)**2 - 2 * cos(al) * cos(be) * cos(ga))
+    )
+    return V
+
+
 def calc_dspacing(hkl, cell):
     """calculate dspacing from analyser crystal lattice and orientation"""
     h, k, l = hkl
     a, b, c, al, be, ga = cell
     al, be, ga = radians(al), radians(be), radians(ga)
+    V = unit_cell_volume(a, b, c, al, be, ga)
+
     S11 = b ** 2 * c ** 2 * sin(al) ** 2
     S22 = a ** 2 * c ** 2 * sin(be) ** 2
     S33 = a ** 2 * b ** 2 * sin(ga) ** 2
     S12 = a * b * c ** 2 * (cos(al) * cos(be) - cos(ga))
     S23 = b * c * a ** 2 * (cos(be) * cos(ga) - cos(al))
     S13 = a * c * b ** 2 * (cos(ga) * cos(al) - cos(be))
-    V = (
-        a * b * c *
-        sqrt(1 - cos(al) ** 2 - cos(be) ** 2 - cos(ga) ** 2 - 2 * cos(al) * cos(be) * cos(ga))
-    )
+
     invD2 = (
         S11 * h ** 2
         + S22 * k ** 2
