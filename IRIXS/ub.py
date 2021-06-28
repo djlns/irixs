@@ -1,7 +1,10 @@
 """ basic six-circle diffractometer simulator """
 import numpy as np
-from numpy import pi, sin, cos, radians
+
+from numpy import pi, sin, cos, radians, degrees
 from numpy.linalg import norm, inv, multi_dot
+from scipy.optimize import least_squares
+from copy import deepcopy
 
 from .tools import reciprocol_lattice
 
@@ -10,42 +13,36 @@ np.seterr(invalid='raise')  # catch failed UB-matrix initialisation due to paral
 def rotation_matricies(mu, nu, chi, eta=0, delta=0, phi=0):
     """ matrices corresponding to the rotation of the circles """
 
-    mu = radians(mu)
     MU = np.array([
         [1, 0, 0],
         [0, cos(mu), -sin(mu)],
         [0, sin(mu), cos(mu)]
     ])
 
-    nu = radians(nu)
     NU = np.array([
         [1, 0, 0],
         [0, cos(nu), -sin(nu)],
         [0, sin(nu), cos(nu)]
     ])
 
-    chi = radians(chi)
     CHI = np.array([
         [cos(chi), 0, sin(chi)],
         [0, 1, 0],
         [-sin(chi), 0, cos(chi)]
     ])
 
-    eta = radians(eta)
     ETA = np.array([
         [cos(eta), sin(eta), 0],
         [-sin(eta), cos(eta), 0],
         [0, 0, 1]
     ])
 
-    delta = radians(delta)
     DELTA = np.array([
         [cos(delta), sin(delta), 0],
         [-sin(delta), cos(delta), 0],
         [0, 0, 1]
     ])
 
-    phi = radians(phi)
     PHI = np.array([
         [cos(phi), sin(phi), 0],
         [-sin(phi), cos(phi), 0],
@@ -56,7 +53,7 @@ def rotation_matricies(mu, nu, chi, eta=0, delta=0, phi=0):
 
 
 def q_phi(mu, nu, chi, eta=0, delta=0, phi=0):
-    """Calculate hkl in the phi frame, in units of 2*pi/lambda."""
+    """Calculate hkl in phi frame, in units of 2*pi/lambda"""
 
     MU, NU, CHI, ETA, DELTA, PHI = rotation_matricies(mu, nu, chi, eta, delta, phi)
 
@@ -106,7 +103,7 @@ class sixc:
     UB : (3x3) np.array
         UB matrix based on crystal lattice (B) + instrument orientation (U)
     orientation : list
-        reflection values for U orientation matrix [hkl0, hkl1, th0, tth0, chi0]
+        reflection values for U orientation matrix [hkl0, hkl1, angles0, angles1]
     cell : list
         lattice parameters [a(Å), b(Å), c(Å), alpha(rad), beta(rad), gamma(rad)]
     recip_cell : list
@@ -118,46 +115,47 @@ class sixc:
 
     Methods
     -------
-    hkl(mu, nu, chi, eta, delta, phi) -> np.array((h, k, l))
-        Return miller indicies for given circle angles
+    hkl(th, tth, chi) -> tuple(h, k, l)
+        Return miller indicies for given IRIXS angles
+    find_hk_angles(hk_list) -> list([th, chi]):
+        Return th and chi angles for list of HK values, for tth=90°
     set_B(a1, a2, a3, alpha1, alpha2, alpha3)
         Set lattice parameters and B matrix
-    set_UB(hkl0, hkl1, th0, tth0, chi0)
-        Set U orientation Matrix and UB-matrix
+    set_UB(hkl0, hkl1, angles0, angles1)
+        Set U orientation Matrix and initalise UB-matrix
     """
 
-    def __init__(self, cell, hkl0, hkl1, th0, tth0, chi0, energy=2838.5):
+    def __init__(self, cell, hkl0, hkl1, angles0, angles1=None, energy=2838.5):
         """
         Parameters
         ----------
         cell : list
             lattice parameters [a(Å), b(Å), c(Å), alpha(°), beta(°), gamma(°)]
         hkl0 : list
-            first reflection [h, k, l]
+            first alignment reflection [h, k, l]
         hkl1 : list
             perp. second reflection [h, k, l]
-        th0 : float
-            horiz angle for hkl0 (°)
-        tth0 : float
-            horiz two-theta for hkl0 (°)
-        chi0 : float
-            chi for hkl0 (°)
+        angles0 : list
+            horiz angles for hkl0  [th0(°), tth0(°), chi0(°)]
+        angles1 : list (optional -- otherwise assume hkl1 is precisely th+90° from hkl0)
+            horiz angles for hkl1  [th1(°), tth1(°), chi1(°)]
         energy : float
             x-ray energy (eV)
         """
         self.energy = energy
         self.wl = 12398 / energy  # eV -> Å
-        self.set_B(*cell)
-        self.set_UB(hkl0, hkl1, th0, tth0, chi0)
+        self.set_B(*cell)        
+        self.set_UB(hkl0, hkl1, angles0, angles1)
+
 
     def set_B(self, a1, a2, a3, alpha1, alpha2, alpha3):
-        """calculate the B matrix from crystal lattice parameters"""
+        """calculate B matrix from crystal lattice parameters"""
 
         alpha1, alpha2, alpha3 = radians(alpha1), radians(alpha2), radians(alpha3)
         self.cell = [a1, a2, a3, alpha1, alpha2, alpha3]
 
         b1, b2, b3, beta1, beta2, beta3 = reciprocol_lattice(*self.cell)
-        self.reciprocol_cell = [b1, b2, b3, beta1, beta2, beta3]
+        self.recip_cell = [b1, b2, b3, beta1, beta2, beta3]
 
         self.B = np.array([
             [b1, b2 * cos(beta3), b3 * cos(beta2)],
@@ -165,10 +163,16 @@ class sixc:
             [0.0, 0.0, 2 * pi / a3]
         ])
 
-    def set_UB(self, hkl0, hkl1, th0, tth0, chi0):
+    def set_UB(self, hkl0, hkl1, angles0, angles1):
         """calculate the U Matrix using two reflections"""
 
-        self.orientation = [hkl0, hkl1, th0, tth0, chi0]
+        # [th, tth, chi] degrees -> [mu, nu, chi] radians
+        if angles1 is None:
+            angles1 = deepcopy(angles0)
+            angles1[0] += 90
+        angles0 = [radians(ang) for ang in angles0]
+        angles1 = [radians(ang) for ang in angles1]
+        self.orientation = [hkl0, hkl1, angles0, angles1]
 
         # HKL orientation vectors
         h1 = np.atleast_2d(np.array(hkl0)).T
@@ -182,8 +186,8 @@ class sixc:
         t2c = np.cross(t3c.ravel(), t1c.ravel()).reshape(3, 1)
 
         # Reflection vectors in phi frame
-        u1p = q_phi(th0, tth0, chi0)
-        u2p = q_phi(th0+90.0, tth0, chi0)
+        u1p = q_phi(*angles0)
+        u2p = q_phi(*angles1)
 
         t1p = u1p
         t3p = np.cross(u1p.ravel(), u2p.ravel()).reshape(3, 1)
@@ -198,8 +202,10 @@ class sixc:
         U = Tp.dot(inv(Tc))
         self.UB = U.dot(self.B)
 
-    def hkl(self, mu, nu=90, chi=None, eta=0, delta=0, phi=0):
-        """return miller indices for given circle angles"""
+    def hkl(self, th, tth, chi):
+        """return miller indices for given IRIXS angles"""
+        hkl = q_hkl(self.wl, self.UB, radians(th), radians(tth), radians(chi))
+        return tuple(hkl.round(3))
 
         if chi is None:
             chi = self.orientation[-1]  # use alignment chi
@@ -218,7 +224,7 @@ if __name__ == "__main__":
 
     # quick test based on Ca3Ru2O7
     cell = [5.368, 5.599, 19.35, 90, 90, 90]
-    f = sixc(cell, [0,0,4], [1,0,0], 29.845, 53.6905, 2.0, 2838.5)
+    f = sixc(cell, [0,0,4], [1,0,0], [29.845, 53.6905, 2.0], energy=2838.5)
 
     # print hkl for values from grazing to normal
     for th in range(0, 95, 5):
