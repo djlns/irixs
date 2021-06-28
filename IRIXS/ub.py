@@ -234,7 +234,16 @@ class sixc:
     def hkl(self, th, tth, chi):
         """return miller indices for given IRIXS angles"""
         hkl = q_hkl(self.wl, self.UB, radians(th), radians(tth), radians(chi))
-        return tuple(hkl.round(3))
+        return hkl
+
+    def angles(self, h, k, l):
+        """return circle angles for given reflection"""
+        x0 = [pi/4, pi/2, self.orientation[2][2]]  # init with th=45, tth=90, chi=chi0
+        def fitfun(angles, h, k, l):
+            hkl = q_hkl(self.wl, self.UB, angles[0], angles[1], angles[2])
+            return hkl[0]-h, hkl[1]-k, hkl[2]-l
+        result = least_squares(fitfun, x0, args=(h,k,l))
+        return np.array([degrees(x) for x in result.x])
 
     def find_hk_angles(self, hk_list, printout=True):
         """find th and chi angles for list of HK values (ignoring L) with detector at 90°"""
