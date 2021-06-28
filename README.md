@@ -69,16 +69,17 @@ from IRIXS import sixc
 
 # initialise UB-matrix using experimental conditions
 unit_cell = [5.37, 5.60, 19.35, 90, 90, 90]
-ref0 = (0, 0, 4)
-ref1 = (1, 0, 0)
+hkl0 = (0, 0, 4)
+hkl1 = (1, 0, 0)
 th0 = 29.85
 tth0 = 53.70
 chi0 = 2.0
-f = sixc(unit_cell, ref0, ref1, th0, tth0, chi0, energy=2838.5)
+angles0 = [th0, tth0, chi0]
+f = sixc(unit_cell, ref0, ref1, angles0, hkl1_offset=90, energy=2838.5)
 
 # print hkl for values from grazing to normal with detector fixed at tth=90
 for th in range(0, 95, 5):
-    print(th, f.hkl(th))
+    print(th, f.hkl(th).round(3)
 ```
 
 ### p01plot
