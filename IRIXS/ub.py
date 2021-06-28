@@ -186,7 +186,7 @@ class sixc:
         self.recip_cell = [b1, b2, b3, beta1, beta2, beta3]
 
         self.B = B_matrix(b1, b2, b3, beta2, beta3, a3, alpha1)
-        self.set_UB()
+        self.update_UB()
 
     def update_U(self, hkl0, hkl1, angles0, angles1):
         """calculate the U Matrix using two reflections"""
@@ -211,7 +211,7 @@ class sixc:
         u2p = q_phi(*angles1)
 
         self.U = U_matrix(h1c, h2c, u1p, u2p)
-        self.set_UB()
+        self.update_UB()
 
     def update_UB(self):
         """find the UB-matrix"""
