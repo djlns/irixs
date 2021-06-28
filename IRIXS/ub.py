@@ -207,18 +207,26 @@ class sixc:
         hkl = q_hkl(self.wl, self.UB, radians(th), radians(tth), radians(chi))
         return tuple(hkl.round(3))
 
-        if chi is None:
-            chi = self.orientation[-1]  # use alignment chi
+    def find_hk_angles(self, hk_list, printout=True):
+        """find th and chi angles for list of HK values (ignoring L) with detector at 90°"""
+        
+        def fitfun(angles, hval, kval):
+            hkl = q_hkl(self.wl, self.UB, angles[0], pi/2, angles[1])
+            return hkl[0]-hval, hkl[1]-kval
 
-        MU, NU, CHI, ETA, DELTA, PHI = rotation_matricies(mu, nu, chi, eta, delta, phi)
+        x0 = [pi/4, self.orientation[2][2]]  # init with th=45, chi=chi0
+        
+        angle_list = []
+        for hk in hk_list:
+            result = least_squares(fitfun, x0, args=hk)
+            angle = [degrees(x) for x in result.x]
+            angle_list.append(angle)
+            if printout:
+                hkl = q_hkl(self.wl, self.UB, result.x[0], pi/2, result.x[1])
+                print(f"({hkl[0]: 5.2f} {hkl[1]: 5.2f} {hkl[2]: 5.2f})", end=" ")
+                print(f"th{angle[0]: 9.4f}  chi{angle[1]: 9.4f}")
 
-        q_lab = NU.dot(DELTA) - np.eye(3)
-        q_lab = q_lab.dot(np.array([[0], [2 * pi / self.wl], [0]]))
-
-        hkl = multi_dot([inv(self.UB), inv(PHI), inv(CHI), inv(ETA), inv(MU), q_lab])
-
-        return np.round(hkl.ravel(), 3)
-
+        return angle_list
 
 if __name__ == "__main__":
 
@@ -228,7 +236,12 @@ if __name__ == "__main__":
 
     # print hkl for values from grazing to normal
     for th in range(0, 95, 5):
-        print(th, f.hkl(th))
+        print(th, f.hkl(th, 90, 2.0))
+    print()
+
+    # find angles for given hk and detector at 90° from grazing to normal
+    hk_list = [(x, 0) for x in np.arange(-1.5, 1.6, 0.1)]
+    angle_list = f.find_hk_angles(hk_list)
 
     # check it's working as expected
-    assert(np.all(f.hkl(45)) == np.all([-0.091, 0, 6.257]))
+    assert(np.all(f.hkl(45, 90, 2)) == np.all([-0.091, 0, 6.257]))
