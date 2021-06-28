@@ -152,6 +152,8 @@ class sixc:
         Update lattice parameters and B-matrix. UB-matrix recalculated.
     update_U(hkl0, hkl1, angles0, angles1)
         Update U-Matrix using two alignment reflections. UB-matrix recalculated.
+    swap_alignment_refs()
+        Swap hkl0 and hkl1 and recalculate the UB-matrix.
     """
 
     def __init__(self, cell, hkl0, hkl1, angles0, angles1=None, energy=2838.5):
@@ -203,14 +205,23 @@ class sixc:
         # HKL orientation vectors
         h1 = np.atleast_2d(np.array(hkl0)).T
         h2 = np.atleast_2d(np.array(hkl1)).T
-        h1c = self.B.dot(h1)
-        h2c = self.B.dot(h2)
+        self.h1c = self.B.dot(h1)
+        self.h2c = self.B.dot(h2)
 
         # Reflection vectors in phi frame
-        u1p = q_phi(*angles0)
-        u2p = q_phi(*angles1)
+        self.u1p = q_phi(*angles0)
+        self.u2p = q_phi(*angles1)
 
-        self.U = U_matrix(h1c, h2c, u1p, u2p)
+        self.U = U_matrix(self.h1c, self.h2c, self.u1p, self.u2p)
+        self._update_UB()
+
+    def swap_alignment_refs(self):
+        self.u1p, self.u2p = self.u2p, self.u1p
+        self.h1c, self.h2c = self.h2c, self.h1c
+        self.orientation = [
+            self.orientation[1], self.orientation[0], self.orientation[3], self.orientation[2]
+        ]
+        self.U = U_matrix(self.h1c, self.h2c, self.u1p, self.u2p)
         self._update_UB()
 
     def _update_UB(self):
