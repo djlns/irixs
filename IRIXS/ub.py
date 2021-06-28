@@ -1,4 +1,34 @@
-""" basic six-circle diffractometer simulator """
+""" Basic six-circle diffractometer simulator
+
+References
+----------
+Uses methodology described by
+H. You, 4S+2D six-circle diffractometer, J. Appl. Cryst. 32, 614, (1999)
+https://doi.org/10.1107/S0021889899001223
+
+Basic approach follows diffcalc (Diamond Light Source)
+https://github.com/DiamondLightSource/diffcalc
+
+See also:
+W. R. Busing and H. A. Levy, Angle calculations for 3- and 4-circle X-ray and neutron
+diffractometers, Acta Cryst. 22, 457-464, (1967) https://doi.org/10.1107/S0365110X67000970
+
+https://github.com/mantidproject/documents/blob/master/Design/UBMatriximplementationnotes.pdf
+
+Notes
+-----
+UB matrix setup limited to IRIXS geometry (horizontal scattering angles)
+
+Circle definitions
+------------------
+mu -- horiz th  
+nu -- horiz tth  
+eta -- vert th  
+delta -- vert tth  
+chi -- sample rocking  
+phi -- sample rotation  
+"""
+
 import numpy as np
 
 from numpy import pi, sin, cos, radians, degrees
@@ -76,7 +106,7 @@ def U_matrix(h1c, h2c, u1p, u2p):
         Tc = np.hstack([t1c/norm(t1c), t2c/norm(t2c), t3c/norm(t3c)])
         Tp = np.hstack([t1p/norm(t1p), t2p/norm(t2p), t3p/norm(t3p)])
     except FloatingPointError:
-        raise BaseException("Reflections are parallel. Could not initialise UB-Matrix.")
+        raise BaseException("Reflections are parallel.")
 
     return Tp.dot(inv(Tc))
 
@@ -107,30 +137,13 @@ def q_hkl(wl, UB, mu, nu, chi, eta=0, delta=0, phi=0):
 
 
 class sixc:
-    """ six-circle diffractometer simulator
-
-    Uses methodology described by
-    H. You, 4S+2D six-circle diffractometer, J. Appl. Cryst 32, 614, (1999)
-    https://doi.org/10.1107/S0021889899001223
-
-    Basic approach follows diffcalc (Diamond Light Source)
-    https://github.com/DiamondLightSource/diffcalc
-
-    UB matrix setup limited to IRIXS geometry (horizontal scattering angles)
-
-    Circle definitions
-    ------------------
-    mu -- horiz th
-    nu -- horiz tth
-    eta -- vert th
-    delta -- vert tth
-    chi -- sample rocking
-    phi -- sample rotation
+    """ Six-circle Diffractometer Simulator
 
     Attributes
     ----------
     UB : (3x3) np.array
-        UB matrix based on crystal lattice (B) + instrument orientation (U)
+        The UB-matrix maps scattering geometry in the laboratory frame (U) to
+        the reciprocol lattice of the sample (B)
     orientation : list
         reflection values for U orientation matrix [hkl0, hkl1, angles0, angles1]
     cell : list
@@ -144,12 +157,12 @@ class sixc:
 
     Methods
     -------
-    hkl(th, tth, chi) -> tuple(h, k, l)
+    hkl(th, tth, chi) -> (h, k, l)
         Return miller indicies for given IRIXS angles
-    angles(h, k, l) -> list([th, tth, chi])
+    angles(h, k, l) -> (th, tth, chi)
         Return angles for given HKL
-    find_hk_angles(hk_list) -> list([th, chi]):
-        Return th and chi angles for list of HK values, for tth=90°
+    find_hk_angles(list([h, k])) -> np.array([th, chi]):
+        Return th and chi angles for list of HK values, given tth=90°
     update_B(a, b, c, alpha, beta, gamma)
         Update lattice parameters and B-matrix. UB-matrix recalculated.
     update_U(hkl0, hkl1, angles0, angles1)
@@ -172,7 +185,7 @@ class sixc:
             horiz angles for hkl0  [th0(°), tth0(°), chi0(°)]
         angles1 : list (optional)
             horiz angles for hkl1  [th1(°), tth1(°), chi1(°)]
-        hkl1_offest : float
+        hkl1_offset : float
             if angles1 is None, assume hkl1 is hkl1_offset° away from hkl0
         energy : float
             x-ray energy (eV)
