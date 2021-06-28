@@ -148,10 +148,10 @@ class sixc:
         Return miller indicies for given IRIXS angles
     find_hk_angles(hk_list) -> list([th, chi]):
         Return th and chi angles for list of HK values, for tth=90°
-    update_B(a1, a2, a3, alpha1, alpha2, alpha3)
-        Set lattice parameters and B matrix (and UB-matrix)
+    update_B(a, b, c, alpha, beta, gamma)
+        Update lattice parameters and B-matrix. UB-matrix recalculated.
     update_U(hkl0, hkl1, angles0, angles1)
-        Set U orientation Matrix (and UB-matrix)
+        Update U-Matrix using upon two alignment reflections. UB-matrix recalculated.
     """
 
     def __init__(self, cell, hkl0, hkl1, angles0, angles1=None, energy=2838.5):
@@ -176,17 +176,18 @@ class sixc:
         self.update_B(*cell)        
         self.update_U(hkl0, hkl1, angles0, angles1)
 
-    def update_B(self, a1, a2, a3, alpha1, alpha2, alpha3):
+    def update_B(self, a, b, c, alpha, beta, gamma):
         """calculate B matrix from crystal lattice parameters"""
 
-        alpha1, alpha2, alpha3 = radians(alpha1), radians(alpha2), radians(alpha3)
+        a1, a2, a3 = a, b, c
+        alpha1, alpha2, alpha3 = radians(alpha), radians(beta), radians(gamma)
         self.cell = [a1, a2, a3, alpha1, alpha2, alpha3]
 
         b1, b2, b3, beta1, beta2, beta3 = reciprocol_lattice(*self.cell)
         self.recip_cell = [b1, b2, b3, beta1, beta2, beta3]
 
         self.B = B_matrix(b1, b2, b3, beta2, beta3, a3, alpha1)
-        self.update_UB()
+        self._update_UB()
 
     def update_U(self, hkl0, hkl1, angles0, angles1):
         """calculate the U Matrix using two reflections"""
@@ -211,9 +212,9 @@ class sixc:
         u2p = q_phi(*angles1)
 
         self.U = U_matrix(h1c, h2c, u1p, u2p)
-        self.update_UB()
+        self._update_UB()
 
-    def update_UB(self):
+    def _update_UB(self):
         """find the UB-matrix"""
         try:
             self.UB = self.U.dot(self.B)
@@ -241,8 +242,8 @@ class sixc:
             angle_list.append(angle)
             if printout:
                 hkl = q_hkl(self.wl, self.UB, result.x[0], pi/2, result.x[1])
-                print(f"({hkl[0]: 5.2f} {hkl[1]: 5.2f} {hkl[2]: 5.2f})", end=" ")
-                print(f"th{angle[0]: 9.4f}  chi{angle[1]: 9.4f}")
+                print(f"th{angle[0]: 9.4f}  chi{angle[1]: 9.4f}", end="  ")
+                print(f"({hkl[0]: 6.3f} {hkl[1]: 6.3f} {hkl[2]: 6.3f})")
 
         return angle_list
 
