@@ -8,7 +8,7 @@ from copy import deepcopy
 
 from .tools import reciprocol_lattice
 
-np.seterr(invalid='raise')  # catch failed UB-matrix initialisation due to parallel reflections
+np.seterr(invalid='raise')  # catch failed UB-matrix due to parallel reflections
 
 def rotation_matricies(mu, nu, chi, eta=0, delta=0, phi=0):
     """ matrices corresponding to the rotation of the circles """
@@ -151,7 +151,7 @@ class sixc:
     update_B(a, b, c, alpha, beta, gamma)
         Update lattice parameters and B-matrix. UB-matrix recalculated.
     update_U(hkl0, hkl1, angles0, angles1)
-        Update U-Matrix using upon two alignment reflections. UB-matrix recalculated.
+        Update U-Matrix using two alignment reflections. UB-matrix recalculated.
     """
 
     def __init__(self, cell, hkl0, hkl1, angles0, angles1=None, energy=2838.5):
@@ -203,7 +203,6 @@ class sixc:
         # HKL orientation vectors
         h1 = np.atleast_2d(np.array(hkl0)).T
         h2 = np.atleast_2d(np.array(hkl1)).T
-
         h1c = self.B.dot(h1)
         h2c = self.B.dot(h2)
 
