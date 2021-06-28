@@ -5,6 +5,7 @@ from numpy.linalg import norm, inv, multi_dot
 
 from .tools import reciprocol_lattice
 
+np.seterr(invalid='raise')  # catch failed UB-matrix initialisation due to parallel reflections
 
 def rotation_matricies(mu, nu, chi, eta=0, delta=0, phi=0):
     """ matrices corresponding to the rotation of the circles """
@@ -188,16 +189,11 @@ class sixc:
         t3p = np.cross(u1p.ravel(), u2p.ravel()).reshape(3, 1)
         t2p = np.cross(t3p.ravel(), t1p.ravel()).reshape(3, 1)
 
-        t1c = t1c / norm(t1c)
-        t2c = t2c / norm(t2c)
-        t3c = t3c / norm(t3c)
-
-        t1p = t1p / norm(t1p)
-        t2p = t2p / norm(t2p)
-        t3p = t3p / norm(t3p)
-
-        Tc = np.hstack([t1c, t2c, t3c])
-        Tp = np.hstack([t1p, t2p, t3p])
+        try:
+            Tc = np.hstack([t1c/norm(t1c), t2c/norm(t2c), t3c/norm(t3c)])
+            Tp = np.hstack([t1p/norm(t1p), t2p/norm(t2p), t3p/norm(t3p)])
+        except FloatingPointError:
+            raise BaseException("Reflections are parallel. Could not initialise UB-Matrix.")
 
         U = Tp.dot(inv(Tc))
         self.UB = U.dot(self.B)
