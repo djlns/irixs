@@ -257,14 +257,14 @@ class sixc:
         angle_list = []
         for hk in hk_list:
             result = least_squares(fitfun, x0, args=hk)
-            angle = [degrees(x) for x in result.x]
-            angle_list.append(angle)
+            angles = [degrees(x) for x in result.x]
+            angle_list.append(angles)
             if printout:
                 hkl = q_hkl(self.wl, self.UB, result.x[0], pi/2, result.x[1])
-                print(f"th{angle[0]: 9.4f}  chi{angle[1]: 9.4f}", end="  ")
+                print(f"th{angles[0]: 9.4f}  chi{angles[1]: 9.4f}", end="  ")
                 print(f"({hkl[0]: 6.3f} {hkl[1]: 6.3f} {hkl[2]: 6.3f})")
 
-        return angle_list
+        return np.array(angle_list)
 
 if __name__ == "__main__":
 
@@ -273,8 +273,17 @@ if __name__ == "__main__":
     f = sixc(cell, [0,0,4], [1,0,0], [29.845, 53.6905, 2.0], energy=2838.5)
 
     # print hkl for values from grazing to normal
-    for th in range(0, 95, 5):
-        print(th, f.hkl(th, 90, 2.0))
+    for th in range(0, 100, 10):
+        print(th, f.hkl(th, 90, 2.0).round(3))
+    print()
+
+    # swap hkl0 and hkl1
+    f.swap_alignment_refs()
+
+    # find angles for given hkl
+    hkl = (1, 0.2, 6)
+    angles = f.angles(*hkl)
+    print(hkl, angles.round(3))
     print()
 
     # find angles for given hk and detector at 90° from grazing to normal
@@ -282,4 +291,4 @@ if __name__ == "__main__":
     angle_list = f.find_hk_angles(hk_list)
 
     # check it's working as expected
-    assert(np.all(f.hkl(45, 90, 2)) == np.all([-0.091, 0, 6.257]))
+    assert(np.all(f.hkl(45, 90, 2).round(3)) == np.all([-0.091, 0, 6.257]))
