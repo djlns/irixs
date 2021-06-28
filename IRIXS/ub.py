@@ -52,6 +52,35 @@ def rotation_matricies(mu, nu, chi, eta=0, delta=0, phi=0):
     return MU, NU, CHI, ETA, DELTA, PHI
 
 
+def B_matrix(b1, b2, b3, beta2, beta3, a3, alpha1):
+    """B-matrix: crystal lattice orientation"""
+    B = np.array([
+        [b1, b2 * cos(beta3), b3 * cos(beta2)],
+        [0.0, b2 * sin(beta3), -b3 * sin(beta2) * cos(alpha1)],
+        [0.0, 0.0, 2 * pi / a3]
+    ])
+    return B
+
+
+def U_matrix(h1c, h2c, u1p, u2p):
+    """U-matrix: instrument orientation"""
+    t1c = h1c
+    t3c = np.cross(h1c.ravel(), h2c.ravel()).reshape(3, 1)
+    t2c = np.cross(t3c.ravel(), t1c.ravel()).reshape(3, 1)
+
+    t1p = u1p
+    t3p = np.cross(u1p.ravel(), u2p.ravel()).reshape(3, 1)
+    t2p = np.cross(t3p.ravel(), t1p.ravel()).reshape(3, 1)
+
+    try:
+        Tc = np.hstack([t1c/norm(t1c), t2c/norm(t2c), t3c/norm(t3c)])
+        Tp = np.hstack([t1p/norm(t1p), t2p/norm(t2p), t3p/norm(t3p)])
+    except FloatingPointError:
+        raise BaseException("Reflections are parallel. Could not initialise UB-Matrix.")
+
+    return Tp.dot(inv(Tc))
+
+
 def q_phi(mu, nu, chi, eta=0, delta=0, phi=0):
     """Calculate hkl in phi frame, in units of 2*pi/lambda"""
 
@@ -119,10 +148,10 @@ class sixc:
         Return miller indicies for given IRIXS angles
     find_hk_angles(hk_list) -> list([th, chi]):
         Return th and chi angles for list of HK values, for tth=90°
-    set_B(a1, a2, a3, alpha1, alpha2, alpha3)
-        Set lattice parameters and B matrix
-    set_UB(hkl0, hkl1, angles0, angles1)
-        Set U orientation Matrix and initalise UB-matrix
+    update_B(a1, a2, a3, alpha1, alpha2, alpha3)
+        Set lattice parameters and B matrix (and UB-matrix)
+    update_U(hkl0, hkl1, angles0, angles1)
+        Set U orientation Matrix (and UB-matrix)
     """
 
     def __init__(self, cell, hkl0, hkl1, angles0, angles1=None, energy=2838.5):
@@ -144,11 +173,10 @@ class sixc:
         """
         self.energy = energy
         self.wl = 12398 / energy  # eV -> Å
-        self.set_B(*cell)        
-        self.set_UB(hkl0, hkl1, angles0, angles1)
+        self.update_B(*cell)        
+        self.update_U(hkl0, hkl1, angles0, angles1)
 
-
-    def set_B(self, a1, a2, a3, alpha1, alpha2, alpha3):
+    def update_B(self, a1, a2, a3, alpha1, alpha2, alpha3):
         """calculate B matrix from crystal lattice parameters"""
 
         alpha1, alpha2, alpha3 = radians(alpha1), radians(alpha2), radians(alpha3)
@@ -157,13 +185,10 @@ class sixc:
         b1, b2, b3, beta1, beta2, beta3 = reciprocol_lattice(*self.cell)
         self.recip_cell = [b1, b2, b3, beta1, beta2, beta3]
 
-        self.B = np.array([
-            [b1, b2 * cos(beta3), b3 * cos(beta2)],
-            [0.0, b2 * sin(beta3), -b3 * sin(beta2) * cos(alpha1)],
-            [0.0, 0.0, 2 * pi / a3]
-        ])
+        self.B = B_matrix(b1, b2, b3, beta2, beta3, a3, alpha1)
+        self.set_UB()
 
-    def set_UB(self, hkl0, hkl1, angles0, angles1):
+    def update_U(self, hkl0, hkl1, angles0, angles1):
         """calculate the U Matrix using two reflections"""
 
         # [th, tth, chi] degrees -> [mu, nu, chi] radians
@@ -181,26 +206,19 @@ class sixc:
         h1c = self.B.dot(h1)
         h2c = self.B.dot(h2)
 
-        t1c = h1c
-        t3c = np.cross(h1c.ravel(), h2c.ravel()).reshape(3, 1)
-        t2c = np.cross(t3c.ravel(), t1c.ravel()).reshape(3, 1)
-
         # Reflection vectors in phi frame
         u1p = q_phi(*angles0)
         u2p = q_phi(*angles1)
 
-        t1p = u1p
-        t3p = np.cross(u1p.ravel(), u2p.ravel()).reshape(3, 1)
-        t2p = np.cross(t3p.ravel(), t1p.ravel()).reshape(3, 1)
+        self.U = U_matrix(h1c, h2c, u1p, u2p)
+        self.set_UB()
 
+    def update_UB(self):
+        """find the UB-matrix"""
         try:
-            Tc = np.hstack([t1c/norm(t1c), t2c/norm(t2c), t3c/norm(t3c)])
-            Tp = np.hstack([t1p/norm(t1p), t2p/norm(t2p), t3p/norm(t3p)])
-        except FloatingPointError:
-            raise BaseException("Reflections are parallel. Could not initialise UB-Matrix.")
-
-        U = Tp.dot(inv(Tc))
-        self.UB = U.dot(self.B)
+            self.UB = self.U.dot(self.B)
+        except AttributeError:
+            pass
 
     def hkl(self, th, tth, chi):
         """return miller indices for given IRIXS angles"""
