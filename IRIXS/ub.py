@@ -146,6 +146,8 @@ class sixc:
     -------
     hkl(th, tth, chi) -> tuple(h, k, l)
         Return miller indicies for given IRIXS angles
+    angles(h, k, l) -> list([th, tth, chi])
+        Return angles for given HKL
     find_hk_angles(hk_list) -> list([th, chi]):
         Return th and chi angles for list of HK values, for tth=90°
     update_B(a, b, c, alpha, beta, gamma)
@@ -156,7 +158,7 @@ class sixc:
         Swap hkl0 and hkl1 and recalculate the UB-matrix.
     """
 
-    def __init__(self, cell, hkl0, hkl1, angles0, angles1=None, energy=2838.5):
+    def __init__(self, cell, hkl0, hkl1, angles0, angles1=None, hkl1_offset=90, energy=2838.5):
         """
         Parameters
         ----------
@@ -168,13 +170,16 @@ class sixc:
             perp. second reflection [h, k, l]
         angles0 : list
             horiz angles for hkl0  [th0(°), tth0(°), chi0(°)]
-        angles1 : list (optional -- otherwise assume hkl1 is precisely th+90° from hkl0)
+        angles1 : list (optional)
             horiz angles for hkl1  [th1(°), tth1(°), chi1(°)]
+        hkl1_offest : float
+            if angles1 is None, assume hkl1 is hkl1_offset° away from hkl0
         energy : float
             x-ray energy (eV)
         """
         self.energy = energy
         self.wl = 12398 / energy  # eV -> Å
+        self.hkl1_offset = hkl1_offset
         self.update_B(*cell)        
         self.update_U(hkl0, hkl1, angles0, angles1)
 
@@ -192,12 +197,12 @@ class sixc:
         self._update_UB()
 
     def update_U(self, hkl0, hkl1, angles0, angles1):
-        """calculate the U Matrix using two reflections"""
+        """calculate the U Matrix using reflections hkl0 and hkl1"""
 
         # [th, tth, chi] degrees -> [mu, nu, chi] radians
         if angles1 is None:
             angles1 = deepcopy(angles0)
-            angles1[0] += 90
+            angles1[0] += self.hkl1_offset
         angles0 = [radians(ang) for ang in angles0]
         angles1 = [radians(ang) for ang in angles1]
         self.orientation = [hkl0, hkl1, angles0, angles1]
@@ -205,23 +210,24 @@ class sixc:
         # HKL orientation vectors
         h1 = np.atleast_2d(np.array(hkl0)).T
         h2 = np.atleast_2d(np.array(hkl1)).T
-        self.h1c = self.B.dot(h1)
-        self.h2c = self.B.dot(h2)
+        self._h1c = self.B.dot(h1)
+        self._h2c = self.B.dot(h2)
 
         # Reflection vectors in phi frame
-        self.u1p = q_phi(*angles0)
-        self.u2p = q_phi(*angles1)
+        self._u1p = q_phi(*angles0)
+        self._u2p = q_phi(*angles1)
 
-        self.U = U_matrix(self.h1c, self.h2c, self.u1p, self.u2p)
+        self.U = U_matrix(self._h1c, self._h2c, self._u1p, self._u2p)
         self._update_UB()
 
     def swap_alignment_refs(self):
-        self.u1p, self.u2p = self.u2p, self.u1p
-        self.h1c, self.h2c = self.h2c, self.h1c
+        """Swap hkl0 and hkl1 and recalculate the UB-matrix."""
+        self._u1p, self._u2p = self._u2p, self._u1p
+        self._h1c, self._h2c = self._h2c, self._h1c
         self.orientation = [
             self.orientation[1], self.orientation[0], self.orientation[3], self.orientation[2]
         ]
-        self.U = U_matrix(self.h1c, self.h2c, self.u1p, self.u2p)
+        self.U = U_matrix(self._h1c, self._h2c, self._u1p, self._u2p)
         self._update_UB()
 
     def _update_UB(self):
