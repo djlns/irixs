@@ -66,6 +66,19 @@ def q_phi(mu, nu, chi, eta=0, delta=0, phi=0):
     return Z
 
 
+def q_hkl(wl, UB, mu, nu, chi, eta=0, delta=0, phi=0):
+    """Calculate miller indicies from six circle angles with UB-matrix"""
+    
+    MU, NU, CHI, ETA, DELTA, PHI = rotation_matricies(mu, nu, chi, eta, delta, phi)
+
+    q_lab = NU.dot(DELTA) - np.eye(3)
+    q_lab = q_lab.dot(np.array([[0], [2 * pi / wl], [0]]))
+
+    hkl = multi_dot([inv(UB), inv(PHI), inv(CHI), inv(ETA), inv(MU), q_lab])
+
+    return hkl.ravel()
+
+
 class sixc:
     """ six-circle diffractometer simulator
 
