@@ -15,18 +15,19 @@ diffractometers, Acta Cryst. 22, 457-464, (1967) https://doi.org/10.1107/S036511
 
 https://github.com/mantidproject/documents/blob/master/Design/UBMatriximplementationnotes.pdf
 
+Circle definitions
+------------------
+mu -- horiz th
+nu -- horiz tth
+eta -- vert th
+delta -- vert tth
+chi -- sample rocking
+phi -- sample rotation
+
 Notes
 -----
 UB matrix setup limited to IRIXS geometry (horizontal scattering angles)
-
-Circle definitions
-------------------
-mu -- horiz th  
-nu -- horiz tth  
-eta -- vert th  
-delta -- vert tth  
-chi -- sample rocking  
-phi -- sample rotation  
+th, tth, chi -> mu, nu, chi
 """
 
 import numpy as np
@@ -125,14 +126,13 @@ def q_phi(mu, nu, chi, eta=0, delta=0, phi=0):
 
 def q_hkl(wl, UB, mu, nu, chi, eta=0, delta=0, phi=0):
     """Calculate miller indicies from six circle angles with UB-matrix"""
-    
+
     MU, NU, CHI, ETA, DELTA, PHI = rotation_matricies(mu, nu, chi, eta, delta, phi)
 
     q_lab = NU.dot(DELTA) - np.eye(3)
     q_lab = q_lab.dot(np.array([[0], [2 * pi / wl], [0]]))
 
     hkl = multi_dot([inv(UB), inv(PHI), inv(CHI), inv(ETA), inv(MU), q_lab])
-
     return hkl.ravel()
 
 
@@ -145,15 +145,15 @@ class sixc:
         The UB-matrix maps scattering geometry in the laboratory frame (U) to
         the reciprocol lattice of the sample (B)
     orientation : list
-        reflection values for U orientation matrix [hkl0, hkl1, angles0, angles1]
+        Reflection values for U orientation matrix [hkl0, hkl1, angles0, angles1]
     cell : list
-        lattice parameters [a(Å), b(Å), c(Å), alpha(rad), beta(rad), gamma(rad)]
+        Lattice parameters [a(Å), b(Å), c(Å), alpha(rad), beta(rad), gamma(rad)]
     recip_cell : list
-        reciprocol lattice [a*, b*, c*, alpha*, beta*, gamma*]
+        Reciprocol lattice [a*, b*, c*, alpha*, beta*, gamma*]
     energy : float
-        x-ray energy (eV)
+        X-ray energy (eV)
     wl : float
-        x-ray wavelength (Å)
+        X-ray wavelength (Å)
 
     Methods
     -------
@@ -251,28 +251,30 @@ class sixc:
             pass
 
     def hkl(self, th, tth, chi):
-        """return miller indices for given IRIXS angles"""
+        """return miller indices (h, k, l) for given IRIXS angles"""
         hkl = q_hkl(self.wl, self.UB, radians(th), radians(tth), radians(chi))
         return hkl
 
     def angles(self, h, k, l):
-        """return circle angles for given reflection"""
+        """return IRIXS angles (th, tth, chi) for given reflection (h, k, l)"""
         x0 = [pi/4, pi/2, self.orientation[2][2]]  # init with th=45, tth=90, chi=chi0
+
         def fitfun(angles, h, k, l):
             hkl = q_hkl(self.wl, self.UB, angles[0], angles[1], angles[2])
             return hkl[0]-h, hkl[1]-k, hkl[2]-l
-        result = least_squares(fitfun, x0, args=(h,k,l))
+
+        result = least_squares(fitfun, x0, args=(h, k, l))
         return np.array([degrees(x) for x in result.x])
 
     def find_hk_angles(self, hk_list, printout=True):
         """find th and chi angles for list of HK values (ignoring L) with detector at 90°"""
-        
-        def fitfun(angles, hval, kval):
+
+        def fitfun(angles, h, k):
             hkl = q_hkl(self.wl, self.UB, angles[0], pi/2, angles[1])
-            return hkl[0]-hval, hkl[1]-kval
+            return hkl[0]-h, hkl[1]-k
 
         x0 = [pi/4, self.orientation[2][2]]  # init with th=45, chi=chi0
-        
+
         angle_list = []
         for hk in hk_list:
             result = least_squares(fitfun, x0, args=hk)
@@ -284,6 +286,7 @@ class sixc:
                 print(f"({hkl[0]: 6.3f} {hkl[1]: 6.3f} {hkl[2]: 6.3f})")
 
         return np.array(angle_list)
+
 
 if __name__ == "__main__":
 
