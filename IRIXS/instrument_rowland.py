@@ -281,7 +281,8 @@ class irixs:
         only_rixs -- only tabulate rixs runs
         """
         if not nstart and not run_nos:
-            run_nos = self.runs.keys()
+            run_nos = list(self.runs.keys())
+
         if nstart:
             if nend is None:
                 try:
@@ -296,13 +297,13 @@ class irixs:
                     )
                 try:
                     latest = latest[:-4].split("_")[-1]
-                    run_nos = range(run_nos, int(latest) + 1)
+                    run_nos = range(nstart, int(latest) + 1)
                 except ValueError:
                     return
-            run_nos = range(nstart, nend + 1)
+            else:
+                run_nos = range(nstart, nend + 1)
 
         self.load(run_nos, False)
-
         for run_no in run_nos:
             out = ""
             a = self.runs[run_no]
@@ -430,7 +431,7 @@ class irixs:
                 x, y = np.array(x), np.array(y)
 
             a["x"], a["y"], a["e"] = x, y, False
-            a["label"] = str(run_no)
+            a["label"] = run_no
 
             header = "experiment: {0}\n".format(self.exp)
             header += "run: {0}\n".format(run_no)
