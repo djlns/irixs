@@ -5,7 +5,7 @@ with open('README.md') as readme_file:
 
 setup(
     name='IRIXS',
-    version='0.6.5',
+    version='0.6.6',
     description='Routines for the IRIXS spectrometer',
     long_description=README,
     long_description_content_type="text/markdown",
@@ -22,10 +22,11 @@ setup(
     ],
     zip_safe=False,
     packages=['IRIXS'],
-    scripts=[
-        'IRIXS/p01plot',
-        'IRIXS/irixs_oneshot'
-    ],
+    entry_points={
+        'console_scripts': [
+            'p01plot=IRIXS.p01plot:main',
+            'irixs_oneshot=IRIXS.oneshot:main'],
+    },
     classifiers=[
         'Development Status :: 4 - Beta',
         'Intended Audience :: Science/Research',
