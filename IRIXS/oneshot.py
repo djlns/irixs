@@ -234,7 +234,7 @@ def find_run(run):
         return False, False
 
 
-if __name__ == "__main__":
+def main():
     try:
         run = int(sys.argv[1])
     except (IndexError, ValueError):
@@ -246,3 +246,7 @@ if __name__ == "__main__":
         plt.show()
     else:
         print('failed to load #{}'.format(run))
+
+
+if __name__ == "__main__":
+    main()
