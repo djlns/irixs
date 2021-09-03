@@ -196,11 +196,9 @@ class spectrograph:
 
             for im, xi in zip(img, x):
                 try:
-                    # roi centre defined by a (lambda) function
-                    rc = self.roic(xi)
+                    rc = self.roic(xi)  # roi centre defined by a function
                 except TypeError:
-                    # fixed value
-                    rc = self.roic
+                    rc = self.roic  # fixed value
                 roiy = rc - (self.roih//2),rc+(self.roih//2)
                 roi.append([self.roix[0], self.roix[1], roiy[0], roiy[1]])
 
@@ -274,7 +272,7 @@ class spectrograph:
         ax3 = fig.add_subplot(gs1[1,1])
         ax4 = fig.add_subplot(gs1[2,:])
 
-        fig.canvas.set_window_title(f"#{run_no}")
+        fig.canvas.manager.set_window_title(f"#{run_no}")
 
         ax1.imshow(
             a["tot"],
@@ -301,7 +299,6 @@ class spectrograph:
         ax3.set_xlim(r1, r2)
 
         # interactive singles
-
         img, roi, x = a["img"], a["roi"], a["x"]
         imgx, imgy, rx, ry = a["imgx"], a["imgy"], a["rx"], a["ry"]
 
@@ -321,7 +318,7 @@ class spectrograph:
         im = img[0]
         r = roi[0]
 
-        cmap = copy.copy(plt.cmap.winter)
+        cmap = copy.copy(plt.get_cmap("winter"))
         cmap.set_under("w")
         cmap.set_over("#F012BE")
 
@@ -333,9 +330,9 @@ class spectrograph:
             cmap=cmap,
             aspect="auto"
         )
-        i["b"], = ax2.plot(imgx[0], rx[0], color="k",lw=0.75)
-        i["c"], = ax3.plot(ry[0], imgy[0], color="k",lw=0.75)
-        i["v"] = ax4.axvline(x[0],color="r",lw=0.5)
+        i["b"], = ax2.plot(imgx[0], rx[0], color="k", lw=0.75)
+        i["c"], = ax3.plot(ry[0], imgy[0], color="k", lw=0.75)
+        i["v"] = ax4.axvline(x[0], color="r", lw=0.5)
         i["t"] = ax4.text(0.05, 0.9, x[0], transform=ax4.transAxes)
 
         ax1.set_xlim(r[0], r[1])
@@ -376,7 +373,7 @@ class spectrograph:
         def click(event):
             if not event.dblclick and event.button == 1:
                 if event.inaxes in [ax4]:
-                    i["no"] = np.abs(x-event.xdata).argmin()
+                    i["no"] = np.abs(x - event.xdata).argmin()
                     do_plot(i)
 
         fig.canvas.mpl_connect("button_press_event", click)
@@ -635,7 +632,7 @@ class spectrograph:
         print(txt_title)
         print(tabulate(
             results,
-            headers=['no', a['auto'], 'intensity', 'centre', 'fwhm']
+            headers=["no", a["auto"], "intensity", "centre", "fwhm"]
         ))
         print()
 
