@@ -18,7 +18,8 @@ setup(
         'matplotlib>=3.1',
         'scipy>=1.4',
         'scikit-image>=0.16',
-        'PyQt5>=5.9'
+        'PyQt5>=5.9',
+        'tabulate>=0.8'
     ],
     zip_safe=False,
     packages=['IRIXS'],
