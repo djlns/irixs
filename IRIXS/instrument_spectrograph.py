@@ -140,24 +140,35 @@ class spectrograph:
             a["img"] = []
             print(f"{run_no}", end="")
 
-            # since we don't have any control over image filename, sort by collection time
             # default to remote folder if it exists
             if os.path.exists(self.datdir):
                 img_root = self.datdir
             else:
                 img_root = self.localdir
-            img_folder = os.path.join(img_root, f"{self.exp}_{run_no:05d}", "greateyes")
-            filepaths = sorted(glob(img_folder+'*.tiff'), key=os.path.getctime)
+            img_folder = f"{self.exp}_{run_no:05d}"
+            img_folder = os.path.join(img_root, img_folder, "greateyes")
+
+            # find image files and sort by collection time
+            filepaths = glob(os.path.join(img_folder, "*.tiff"))
+            filepaths = sorted(filepaths, key=os.path.getctime)
             filenames = [os.path.basename(f) for f in filepaths]
 
-        for i,f in enumerate(filenames):
-            img = load_tiff(f, run_no, self.exp, self.datdir, self.localdir, self.bias_correct)
-            if img is not None:
-                img -= self.detfac
-                img[~np.logical_and(img > self.threshold, img < self.cutoff)] = 0
-                a['img'].append(img)
-            else:
-                break
+            for i,f in enumerate(filenames):
+                img = load_tiff(
+                    f,
+                    run_no,
+                    self.exp,
+                    self.datdir,
+                    self.localdir,
+                    self.bias_correct
+                )
+                if img is not None:
+                    img -= self.detfac
+                    bounds = (img > self.threshold) & (img < self.cutoff)
+                    img[~bounds] = 0
+                    a['img'].append(img)
+                else:
+                    break
         a['x'] = a['x'][:i+1]  # ensure length of x is same as number of images
         print(f'/{len(a["img"])}')
 
