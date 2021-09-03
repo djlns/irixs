@@ -3,7 +3,6 @@
 import os
 import shutil
 import copy
-import warnings
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -11,6 +10,7 @@ from glob import glob
 from skimage import io
 from tabulate import tabulate
 from matplotlib.offsetbox import AnchoredText
+from tifffile import TiffFileError
 
 from .tools import load_fio, flatten, peak_fit, binning
 
@@ -37,38 +37,30 @@ def load_tiff(filename, run_no, exp, datdir, localdir, correct=True):
     """ load greateyes detector tiff file
     correct - correct for bias of 4 quadrants when using EFGH output
     """
-    tiffpath = '{dir}/{exp}_{run_no:05d}/greateyes/{filename}'
-    path = tiffpath.format(
-        dir=datdir,
-        exp=exp,
-        run_no=run_no,
-        filename=filename
-    )
-    
-    with warnings.catch_warnings():
-        if localdir:
-            path2 = tiffpath.format(
-                dir=localdir,
-                exp=exp,
-                run_no=run_no,
-                filename=filename
-            )
+
+    tiffpath = "{0}/{1}_{2:05d}/greateyes/{3}"
+    path_remote = tiffpath.format(datdir, exp, run_no, filename)
+    path_local = tiffpath.format(localdir, exp, run_no, filename)
+
+    if localdir:
+        try:
+            img = io.imread(path_local)
+        except (FileNotFoundError, OSError, TiffFileError):
             try:
-                img = io.imread(path2)
-            except (Warning, FileNotFoundError, OSError):
-                try:
-                    os.makedirs(os.path.dirname(path2), exist_ok=True)
-                    shutil.copyfile(path, path2)
-                    img = io.imread(path2)
-                except IOError:
-                    return
-        else:
-            try:
-                img = io.imread(path)
-            except (Warning, FileNotFoundError, OSError):
+                os.makedirs(os.path.dirname(path_local), exist_ok=True)
+                shutil.copyfile(path_remote, path_local)
+                img = io.imread(path_local)
+            except TiffFileError:
                 return
+    else:
+        try:
+            img = io.imread(path_remote)
+        except (FileNotFoundError, OSError, TiffFileError):
+            return
+
     if correct:
         img = bias_correct_4output(img)
+
     return img
 
 
@@ -126,6 +118,8 @@ class spectrograph:
             if self.runs[run_no] and self.runs[run_no]["complete"]:
                 continue
 
+            print(f"{run_no}", end="")
+
             fio_file = "{0}_{1:05d}.fio".format(self.exp, run_no)
             fio_remote = os.path.join(self.datdir, fio_file)
             fio_local = os.path.join(self.localdir, fio_file)
@@ -136,9 +130,6 @@ class spectrograph:
                     shutil.copyfile(fio_remote, fio_local)
             else:
                 a = load_fio(run_no, self.exp, self.localdir)
-
-            a["img"] = []
-            print(f"{run_no}", end="")
 
             # default to remote folder if it exists
             if os.path.exists(self.datdir):
@@ -153,7 +144,8 @@ class spectrograph:
             filepaths = sorted(filepaths, key=os.path.getctime)
             filenames = [os.path.basename(f) for f in filepaths]
 
-            for i,f in enumerate(filenames):
+            img_list = []
+            for f in filenames:
                 img = load_tiff(
                     f,
                     run_no,
@@ -162,16 +154,17 @@ class spectrograph:
                     self.localdir,
                     self.bias_correct
                 )
-                if img is not None:
-                    img -= self.detfac
-                    bounds = (img > self.threshold) & (img < self.cutoff)
-                    img[~bounds] = 0
-                    a['img'].append(img)
-                else:
+                if img is None:
+                    print("!", end="")
                     break
+                img -= self.detfac
+                bounds = (img > self.threshold) & (img < self.cutoff)
+                img[~bounds] = 0
+                img_list.append(img)
 
-            print(f'/{len(a["img"])}')
-        self.runs[run_no] = a
+            print(f"/{len(img_list)}")
+            a["img"] = img_list            
+            self.runs[run_no] = a
 
     def transform(self, run_nos, ysca=1, fit=True):
 
@@ -194,7 +187,7 @@ class spectrograph:
                 img = np.atleast_3d(np.array(a["img"]))
                 img = img * ysca
 
-            x = a["data"][a["head"]]
+            x = a["data"][a["auto"]]
             if len(x) != len(img):
                 x = x[:img.shape[0]]
 
