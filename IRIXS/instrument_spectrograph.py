@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 
 from glob import glob
 from skimage import io
+from tabulate import tabulate
 from matplotlib.offsetbox import AnchoredText
 
 from .tools import load_fio, flatten, peak_fit, binning
@@ -620,9 +621,19 @@ class spectrograph:
 
             ax[0].text(0.05, 0.95, txt_title, transform=ax[0].transAxes)
 
-        # table = np.array([range(len(trend_x)),trend_x, trend_I, trend_x0, trend_fw]).T
-        # print(txt_title)
-        # print(tabulate(table,headers=['no', a['auto'], 'intensity', 'centre', 'fwhm']))
-        # print()
+        # print results to console
+        results = np.array([
+            range(len(trend_x)),
+            trend_x,
+            trend_I,
+            trend_x0,
+            trend_fw
+        ]).T
+        print(txt_title)
+        print(tabulate(
+            results,
+            headers=['no', a['auto'], 'intensity', 'centre', 'fwhm']
+        ))
+        print()
 
-        return np.array([trend_x, trend_I, trend_x0, trend_fw])
+        return results
