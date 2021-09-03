@@ -50,7 +50,7 @@ def load_tiff(filename, run_no, exp, datdir, localdir, correct=True):
                 os.makedirs(os.path.dirname(path_local), exist_ok=True)
                 shutil.copyfile(path_remote, path_local)
                 img = io.imread(path_local)
-            except TiffFileError:
+            except TiffFileError:  # raise OSErrors on copy
                 return
     else:
         try:
@@ -201,7 +201,7 @@ class spectrograph:
                     rc = self.roic(xi)  # roi centre defined by a function
                 except TypeError:
                     rc = self.roic  # fixed value
-                roiy = rc - (self.roih//2),rc+(self.roih//2)
+                roiy = rc - (self.roih//2), rc+(self.roih//2)
                 roi.append([self.roix[0], self.roix[1], roiy[0], roiy[1]])
 
                 ri = im[roiy[0]:roiy[1], self.roix[0]:self.roix[1]]
@@ -269,10 +269,10 @@ class spectrograph:
             3, 2,  hspace=0.1, wspace=0.1,
             height_ratios=[1, 0.2, 0.4], width_ratios=[0.2, 1],
         )
-        ax1 = fig.add_subplot(gs1[0,1])
-        ax2 = fig.add_subplot(gs1[0,0])
-        ax3 = fig.add_subplot(gs1[1,1])
-        ax4 = fig.add_subplot(gs1[2,:])
+        ax1 = fig.add_subplot(gs1[0, 1])
+        ax2 = fig.add_subplot(gs1[0, 0])
+        ax3 = fig.add_subplot(gs1[1, 1])
+        ax4 = fig.add_subplot(gs1[2, :])
 
         fig.canvas.manager.set_window_title(f"#{run_no}")
 
@@ -568,7 +568,7 @@ class spectrograph:
             txt_title += f" {title}: {a[title]}"
 
         if plot:
-            fig, ax = plt.subplots(figsize=(4,9), constrained_layout=True)
+            fig, ax = plt.subplots(figsize=(4, 9), constrained_layout=True)
             ax.text(0.04, 0.98, txt_title, transform=ax.transAxes)
 
         trend_x0, trend_I, trend_fw = [], [], []
@@ -611,7 +611,9 @@ class spectrograph:
         trend_x = a["x"]
 
         if plot_trend:
-            fig,ax = plt.subplots(1,3,constrained_layout=True,figsize=(10,4))
+            _, ax = plt.subplots(
+                1, 3, constrained_layout=True, figsize=(10, 4)
+            )
 
             ax[0].plot(trend_x, trend_I)
             ax[1].plot(trend_x, trend_x0)
