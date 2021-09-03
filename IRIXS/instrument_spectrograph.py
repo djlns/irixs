@@ -58,6 +58,8 @@ def load_tiff(filename, run_no, exp, datdir, localdir, correct=True):
         except (FileNotFoundError, OSError, TiffFileError):
             return
 
+    if img.shape[0] == 0:  # malformed tiff file
+        return
     if correct:
         img = bias_correct_4output(img)
 
