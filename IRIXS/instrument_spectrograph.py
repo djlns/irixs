@@ -169,9 +169,8 @@ class spectrograph:
                     a['img'].append(img)
                 else:
                     break
-        a['x'] = a['x'][:i+1]  # ensure length of x is same as number of images
-        print(f'/{len(a["img"])}')
 
+            print(f'/{len(a["img"])}')
         self.runs[run_no] = a
 
     def transform(self, run_nos, ysca=1, fit=True):
@@ -195,7 +194,7 @@ class spectrograph:
                 img = np.atleast_3d(np.array(a["img"]))
                 img = img * ysca
 
-            x = a['x']
+            x = a["data"][a["head"]]
             if len(x) != len(img):
                 x = x[:img.shape[0]]
 
