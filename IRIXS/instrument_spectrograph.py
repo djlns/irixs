@@ -37,10 +37,21 @@ def load_tiff(filename, run_no, exp, datdir, localdir, correct=True):
     correct - correct for bias of 4 quadrants when using EFGH output
     """
     tiffpath = '{dir}/{exp}_{run_no:05d}/greateyes/{filename}'
-    path = tiffpath.format(dir=datdir, exp=exp, run_no=run_no, filename=filename)
+    path = tiffpath.format(
+        dir=datdir,
+        exp=exp,
+        run_no=run_no,
+        filename=filename
+    )
+    
     with warnings.catch_warnings():
         if localdir:
-            path2 = tiffpath.format(dir=localdir, exp=exp, run_no=run_no, filename=filename)
+            path2 = tiffpath.format(
+                dir=localdir,
+                exp=exp,
+                run_no=run_no,
+                filename=filename
+            )
             try:
                 img = io.imread(path2)
             except (Warning, FileNotFoundError, OSError):
@@ -120,7 +131,7 @@ class spectrograph:
 
             if not os.path.isfile(fio_local):
                 a = load_fio(run_no, self.exp, self.datdir)
-                if a and a['complete']:
+                if a and a["complete"]:
                     shutil.copyfile(fio_remote, fio_local)
             else:
                 a = load_fio(run_no, self.exp, self.localdir)
@@ -162,14 +173,14 @@ class spectrograph:
             # sum up images if given a list of run_nos
             if isinstance(run_no, (list, tuple)):
                 a = self.runs[run_no[0]]
-                img = np.atleast_3d(np.array(a['img'])) / len(run_no)
+                img = np.atleast_3d(np.array(a["img"])) / len(run_no)
                 for r in run_no[1:]:
                     b = self.runs[r]
-                    img = img + np.atleast_3d(np.array(b['img'])) / len(run_no)
+                    img = img + np.atleast_3d(np.array(b["img"])) / len(run_no)
             # single image
             else:
                 a = self.runs[run_no]
-                img = np.atleast_3d(np.array(a['img']))
+                img = np.atleast_3d(np.array(a["img"]))
                 img = img * ysca
 
             x = a['x']
@@ -181,7 +192,7 @@ class spectrograph:
 
             for im, xi in zip(img, x):
                 try:
-                    # centre of roi as a lambda function
+                    # roi centre defined by a (lambda) function
                     rc = self.roic(xi)
                 except TypeError:
                     # fixed value
@@ -213,12 +224,13 @@ class spectrograph:
             totx = np.nansum(tot, axis=1)
             toty = np.nansum(tot, axis=0)
 
+            f_txt = "fwhm: {0:.4f}\ncen: {1:.1f}\namp: {2:.1f}\nfra: {3:.1f}"
             if fit:
                 try:
                     xfx, yfx, px = peak_fit(x_totx, totx)
                     xfy, yfy, py = peak_fit(x_toty, toty)
-                    txtx = f'fwhm: {px[1]*2:.4f}\ncen: {px[2]:.1f}\namp: {px[0]:.1f}\nfra: {px[3]:.1f}'
-                    txty = f'fwhm: {py[1]*2:.4f}\ncen: {py[2]:.1f}\namp: {py[0]:.1f}\nfra: {py[3]:.1f}'
+                    txtx = f_txt.format(px[1]*2, px[2], px[0], px[3])
+                    txty = f_txt.format(py[1]*2, py[2], py[0], py[3])
                 except:
                     fit = False
 
@@ -244,38 +256,39 @@ class spectrograph:
 
         fig = plt.figure(figsize=(16.5, 8.5))
         gs0 = fig.add_gridspec(
-            1, 2, left=0.05, right=0.99, top=0.99, bottom=0.04, width_ratios=[1, 1.35]
+            1, 2, left=0.05, right=0.99, top=0.99, bottom=0.04,
+            width_ratios=[1, 1.35]
         )
 
         # averaged total
-
         gs1 = gs0[0].subgridspec(
-            3, 2, height_ratios=[1, 0.2, 0.4], width_ratios=[0.2, 1], hspace=0.1, wspace=0.1
+            3, 2,  hspace=0.1, wspace=0.1,
+            height_ratios=[1, 0.2, 0.4], width_ratios=[0.2, 1],
         )
         ax1 = fig.add_subplot(gs1[0,1])
         ax2 = fig.add_subplot(gs1[0,0])
         ax3 = fig.add_subplot(gs1[1,1])
         ax4 = fig.add_subplot(gs1[2,:])
 
-        fig.canvas.set_window_title(f'#{run_no}')
+        fig.canvas.set_window_title(f"#{run_no}")
 
         ax1.imshow(
             a["tot"],
-            origin='lower',
-            interpolation='hanning',
+            origin="lower",
+            interpolation="hanning",
             vmin=self.vmin,
             vmax=self.vmax_average,
-            cmap=plt.get_cmap('bone_r'),
+            cmap=plt.get_cmap("bone_r"),
             extent=a["extent"],
-            aspect='auto'
+            aspect="auto"
         )
 
-        ax2.plot(a["totx"], a["x_totx"], color='k', lw=0.75)
-        ax3.plot(a["x_toty"], a["toty"], color='k', lw=0.75)
+        ax2.plot(a["totx"], a["x_totx"], color="k", lw=0.75)
+        ax3.plot(a["x_toty"], a["toty"], color="k", lw=0.75)
 
         if a["fitted"]:
-            ax2.plot(a["yfx"], a["xfx"], color='k',lw=0.5)
-            ax3.plot(a["xfy"], a["yfy"], color='k',lw=0.5)
+            ax2.plot(a["yfx"], a["xfx"], color="k",lw=0.5)
+            ax3.plot(a["xfy"], a["yfy"], color="k",lw=0.5)
             ax2.add_artist(AnchoredText(a["txtx"], loc=1, frameon=False, pad=1))
             ax3.add_artist(AnchoredText(a["txty"], loc=2, frameon=False, pad=1))
 
@@ -289,31 +302,37 @@ class spectrograph:
         imgx, imgy, rx, ry = a["imgx"], a["imgy"], a["rx"], a["ry"]
 
         gs2 = gs0[1].subgridspec(
-            2, 2, height_ratios=[1, 0.2], width_ratios=[0.2, 1], hspace=0.05, wspace=0.05
+            2, 2, hspace=0.05, wspace=0.05,
+            height_ratios=[1, 0.2], width_ratios=[0.2, 1]
         )
         ax1 = fig.add_subplot(gs2[0,1])
         ax2 = fig.add_subplot(gs2[0,0])
         ax3 = fig.add_subplot(gs2[1,1])
 
         ax4.plot(a["x"], a["y"], color='k', lw=0.75)
-        ax4.set_xlabel(a['auto'])
-        ax4.set_ylabel('summed intensity')
+        ax4.set_xlabel(a["auto"])
+        ax4.set_ylabel("summed intensity")
 
-        i = {'no':0}
+        i = {"no":0}
         im = img[0]
         r = roi[0]
 
         cmap = copy.copy(plt.cmap.winter)
-        cmap.set_under('w')
-        cmap.set_over('#F012BE')
+        cmap.set_under("w")
+        cmap.set_over("#F012BE")
 
-        i['a'] = ax1.imshow(
-            im, origin='lower', vmin=self.vmin, vmax=self.vmax_single, cmap=cmap, aspect='auto'
+        i["a"] = ax1.imshow(
+            im,
+            origin="lower",
+            vmin=self.vmin,
+            vmax=self.vmax_single,
+            cmap=cmap,
+            aspect="auto"
         )
-        i['b'], = ax2.plot(imgx[0], rx[0], color='k',lw=0.75)
-        i['c'], = ax3.plot(ry[0], imgy[0], color='k',lw=0.75)
-        i['v'] = ax4.axvline(x[0],color='r',lw=0.5)
-        i['t'] = ax4.text(0.05, 0.9, x[0], transform=ax4.transAxes)
+        i["b"], = ax2.plot(imgx[0], rx[0], color="k",lw=0.75)
+        i["c"], = ax3.plot(ry[0], imgy[0], color="k",lw=0.75)
+        i["v"] = ax4.axvline(x[0],color="r",lw=0.5)
+        i["t"] = ax4.text(0.05, 0.9, x[0], transform=ax4.transAxes)
 
         ax1.set_xlim(r[0], r[1])
         ax1.set_ylim(r[2], r[3])
@@ -321,43 +340,43 @@ class spectrograph:
         ax3.set_xlim(r[0], r[1])
 
         def do_plot(i):
-            im = img[i['no']]
-            imx = imgx[i['no']]
-            imy = imgy[i['no']]
-            irx = rx[i['no']]
-            iry = ry[i['no']]
-            r = roi[i['no']]
-            i['a'].set_data(im)
-            i['b'].set_xdata(imx)
-            i['b'].set_ydata(irx)
-            i['c'].set_xdata(iry)
-            i['c'].set_ydata(imy)
-            i['v'].set_xdata(x[i['no']])
-            i['t'].set_text(x[i['no']])
+            im = img[i["no"]]
+            imx = imgx[i["no"]]
+            imy = imgy[i["no"]]
+            irx = rx[i["no"]]
+            iry = ry[i["no"]]
+            r = roi[i["no"]]
+            i["a"].set_data(im)
+            i["b"].set_xdata(imx)
+            i["b"].set_ydata(irx)
+            i["c"].set_xdata(iry)
+            i["c"].set_ydata(imy)
+            i["v"].set_xdata(x[i["no"]])
+            i["t"].set_text(x[i["no"]])
             ax2.relim()
             ax3.relim()
-            ax2.autoscale(axis='x')
-            ax3.autoscale(axis='y')
+            ax2.autoscale(axis="x")
+            ax3.autoscale(axis="y")
             plt.draw()
 
         def press(event):
-            if event.key == 'left':
-                if i['no'] > 0:
-                    i['no'] -= 1
+            if event.key == "left":
+                if i["no"] > 0:
+                    i["no"] -= 1
                     do_plot(i)
-            elif event.key == 'right':
-                if i['no'] < img.shape[0]-1:
-                    i['no'] += 1
+            elif event.key == "right":
+                if i["no"] < img.shape[0]-1:
+                    i["no"] += 1
                     do_plot(i)
 
         def click(event):
             if not event.dblclick and event.button == 1:
                 if event.inaxes in [ax4]:
-                    i['no'] = np.abs(x-event.xdata).argmin()
+                    i["no"] = np.abs(x-event.xdata).argmin()
                     do_plot(i)
 
-        fig.canvas.mpl_connect('button_press_event', click)
-        fig.canvas.mpl_connect('key_press_event', press)
+        fig.canvas.mpl_connect("button_press_event", click)
+        fig.canvas.mpl_connect("key_press_event", press)
 
     def condition(
         self,
@@ -383,22 +402,22 @@ class spectrograph:
 
             if oneshot_x:
                 if oneshot_no:
-                    x = a['rx'][oneshot_no]
-                    y = a['imgx'][oneshot_no]
+                    x = a["rx"][oneshot_no]
+                    y = a["imgx"][oneshot_no]
                 else:
-                    x = a['x_totx']
-                    y = a['totx']
+                    x = a["x_totx"]
+                    y = a["totx"]
                 a["cond_type"] = "oneshot_x"
             elif oneshot_y:
                 if oneshot_no:
-                    x = a['ry'][oneshot_no]
-                    y = a['imgy'][oneshot_no]
+                    x = a["ry"][oneshot_no]
+                    y = a["imgy"][oneshot_no]
                 else:
-                    x = a['x_toty']
-                    y = a['toty']
+                    x = a["x_toty"]
+                    y = a["toty"]
                 a["cond_type"] = "oneshot_y"
             else:
-                x, y = a['x'], a['y']
+                x, y = a["x"], a["y"]
                 a["cond_type"] = a["auto"]
 
             if bins:
@@ -406,18 +425,19 @@ class spectrograph:
 
             x = (x - x0) * xsca
 
-        a['cond_x'], a['cond_y'] = x, y
+        a["cond_x"], a["cond_y"] = x, y
 
         if fit:
             try:
                 xf, yf, p = peak_fit(x, y)
-                r = '#{0}  '.format(a['no'])
-                r += 'cen:{0:.4f}   '.format(p[2])
-                r += 'amp:{0:.2f}   '.format(p[0])
-                r += 'sig:{0:.4f}   '.format(p[1])
-                r += 'fwhm:{0:.4f}  '.format(p[1]*2)
-                r += 'fra:{0:.1f}   '.format(p[3])
-                a['cond_xf'], a['cond_yf'], a['cond_p'], a['cond_r'] = xf, yf, p, r
+                r = "#{0}  ".format(a["no"])
+                r += "cen:{0:.4f}   ".format(p[2])
+                r += "amp:{0:.2f}   ".format(p[0])
+                r += "sig:{0:.4f}   ".format(p[1])
+                r += "fwhm:{0:.4f}  ".format(p[1]*2)
+                r += "fra:{0:.1f}   ".format(p[3])
+                a["cond_xf"], a["cond_yf"] = xf, yf
+                a["cond_p"], a["cond_r"] = p, r
                 print(r)
             except:
                 pass
@@ -470,9 +490,9 @@ class spectrograph:
         trend_x, trend_x0, trend_I, trend_fw = [], [], [], []
         for i, run_no in enumerate(run_nos):
             a = self.runs[run_no]
-            x, y = a['cond_x'], a['cond_y']
+            x, y = a["cond_x"], a["cond_y"]
             if "cond_xf" in a and fit:
-                xf, yf, p = a['cond_xf'], a['cond_yf'], a['cond_p']
+                xf, yf, p = a["cond_xf"], a["cond_yf"], a["cond_p"]
                 if norm:
                     yf = yf/np.max(y)
             else:
@@ -494,34 +514,44 @@ class spectrograph:
             if fit and xf:
                 ax.plot(xf, yf+i*ystep, color=l.get_color(), lw=0.5)
 
-        ax.set_ylabel('Intensity')
+        ax.set_ylabel("Intensity")
 
         if a["cond_type"] == "oneshot_x":
-            ax.set_xlabel('y-pixel')
+            ax.set_xlabel("y-pixel")
         elif a["cond_type"] == "oneshot_y":
-            ax.set_xlabel('x-pixel')
+            ax.set_xlabel("x-pixel")
         else:
             ax.set_xlabel(a["cond_type"])
 
         if plot_trend:
-            axes[1].plot(trend_x, trend_x0, '.-')
-            axes[2].plot(trend_x, trend_fw, '.-')
-            axes[3].plot(trend_x, trend_I, '.-')
-            axes[1].set_ylabel('Center')
-            axes[2].set_ylabel('FWHM')
-            axes[3].set_ylabel('Amplitude')
+            axes[1].plot(trend_x, trend_x0, ".-")
+            axes[2].plot(trend_x, trend_fw, ".-")
+            axes[3].plot(trend_x, trend_I, ".-")
+            axes[1].set_ylabel("Center")
+            axes[2].set_ylabel("FWHM")
+            axes[3].set_ylabel("Amplitude")
             axes[3].set_ylim(0)
             for axi in axes:
                 axi.set_xlabel("run number")
 
-        ax.legend(fontsize='small')
+        ax.legend(fontsize="small")
 
-    def track_signal(self, run_no, fit=True, bins=None, maxsig=1200, vert=False, title='no',
-                     plot=True, plot_trend=False, ystep=0):
+    def track_signal(
+        self,
+        run_no,
+        fit=True,
+        bins=None,
+        maxsig=1200,
+        vert=False,
+        title="no",
+        plot=True,
+        plot_trend=False,
+        ystep=0
+    ):
 
         a = self.runs[run_no]
 
-        rx, ry, imgx, imgy = a['rx'], a['ry'], a['imgx'], a['imgy']
+        rx, ry, imgx, imgy = a["rx"], a["ry"], a["imgx"], a["imgy"]
 
         if vert:
             r = rx
@@ -530,23 +560,23 @@ class spectrograph:
             r = ry
             im = imgy
 
-        txt_title = f'#{a["no"]}'
-        if title != 'no':
-            txt_title += f' {title}: {a[title]}'
+        txt_title = f"#{a['no']}"
+        if title != "no":
+            txt_title += f" {title}: {a[title]}"
 
         if plot:
             fig, ax = plt.subplots(figsize=(4,9), constrained_layout=True)
             ax.text(0.04, 0.98, txt_title, transform=ax.transAxes)
 
         trend_x0, trend_I, trend_fw = [], [], []
-        for i, (x, y, xpos) in enumerate(zip(r, im, a['x'])):
+        for i, (x, y, xpos) in enumerate(zip(r, im, a["x"])):
 
             if bins:
                 x, y, _ = binning(x, y, bins)
 
             if plot:
                 l, = ax.plot(x, y+i*ystep, lw=0.75)
-                ax.text(x[0], y[0]+i*ystep, f'{xpos:.4f}', fontsize='small')
+                ax.text(x[0], y[0]+i*ystep, f"{xpos:.4f}", fontsize="small")
 
             if fit:
                 try:
@@ -575,7 +605,7 @@ class spectrograph:
                 trend_x0.append(com)
                 trend_fw.append(wid)
 
-        trend_x = a['x']
+        trend_x = a["x"]
 
         if plot_trend:
             fig,ax = plt.subplots(1,3,constrained_layout=True,figsize=(10,4))
@@ -584,9 +614,9 @@ class spectrograph:
             ax[1].plot(trend_x, trend_x0)
             ax[2].plot(trend_x, trend_fw)
 
-            ax[0].set_ylabel('intensity')
-            ax[1].set_ylabel('centre')
-            ax[2].set_ylabel('fwhm')
+            ax[0].set_ylabel("Intensity")
+            ax[1].set_ylabel("Centre")
+            ax[2].set_ylabel("FWHM")
 
             ax[0].text(0.05, 0.95, txt_title, transform=ax[0].transAxes)
 
