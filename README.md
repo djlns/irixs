@@ -21,7 +21,7 @@ Scripts for the IRIXS spectrometer, Beamline P01, Synchrotron Petra-III, DESY
 
 ## Installation
 
-Environment: Python 3.8+ w/ scipy + matplotlib + scikit-image + PyQT5
+Environment: Python 3.8+ w/ scipy, matplotlib, scikit-image, tabulate, PyQT5
 
 from PyPI:
 1. `pip install IRIXS`
@@ -44,12 +44,14 @@ Example reduction script for `IRIXS.irixs`
 ```python
 from IRIXS import irixs
 
-expname = 'irixs_11009137'
+# initiate class and define detector ROI and zero energy transfer position
+expname = "irixs_11009137"
 a = irixs(expname, y0=667, roix=[160, 1500], roih=[-200, 200])
 
 elastic_runs = [1713, 1719]
 spectra_runs = [1710, 1711, 1712, 1722, 1723]
 
+# load and condition data by binning with meV steps
 a.condition(0.006, elastic_runs, fit=True)
 a.condition(0.02, spectra_runs)
 
@@ -59,7 +61,22 @@ a.plot(spectra_runs, ax=ax)
 ```
 
 ### IRIXS.spectrograph
-todo: example script for `IRIXS.spectrograph`
+```python
+from IRIXS import spectrograph
+
+# initiate class and define detector image ROI
+expname = "irixs_11012416"
+b = spectrograph(expname, roix=[1024, 2048], roic=790, roih=100)
+
+runs = [2476, 2477]
+
+# plot raw detector images to refine ROI
+b.detector(2476)
+
+# condition and plot by summing over defined axis
+b.condition(runs, bins=20, oneshot_y=True)
+b.plot(runs)
+```
 
 ### IRIXS.sixc
 Example script for `IRIXS.sixc`
