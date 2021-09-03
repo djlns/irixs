@@ -543,7 +543,6 @@ class spectrograph:
         self,
         run_no,
         fit=True,
-        bins=None,
         maxsig=1200,
         vert=False,
         title="no",
@@ -568,14 +567,11 @@ class spectrograph:
             txt_title += f" {title}: {a[title]}"
 
         if plot:
-            fig, ax = plt.subplots(figsize=(4, 9), constrained_layout=True)
+            _, ax = plt.subplots(figsize=(6, 7), constrained_layout=True)
             ax.text(0.04, 0.98, txt_title, transform=ax.transAxes)
 
         trend_x0, trend_I, trend_fw = [], [], []
         for i, (x, y, xpos) in enumerate(zip(r, im, a["x"])):
-
-            if bins:
-                x, y, _ = binning(x, y, bins)
 
             if plot:
                 l, = ax.plot(x, y+i*ystep, lw=0.75)
@@ -590,7 +586,7 @@ class spectrograph:
                     if (p[1] < maxsig) and (p[2] > 0):
                         trend_I.append(p[0])
                         trend_x0.append(p[2])
-                        trend_fw.append(p[1]*2)
+                        trend_fw.append(p[1] * 2)
                     else:
                         trend_I.append(np.nan)
                         trend_x0.append(np.nan)
@@ -600,10 +596,10 @@ class spectrograph:
                     trend_x0.append(np.nan)
                     trend_fw.append(np.nan)
             else:
-                com = np.sum(x*y)/np.sum(y)
+                com = np.sum(x * y)/np.sum(y)
                 height = np.max(y) - np.min(y)
-                half = x[np.abs(y-(height/2+np.min(y))).argmin()]
-                wid = np.abs(half-com)*2
+                half = x[np.abs(y - (height / 2 + np.min(y))).argmin()]
+                wid = np.abs(half - com)*2
                 trend_I.append(np.sum(y))
                 trend_x0.append(com)
                 trend_fw.append(wid)
@@ -612,7 +608,7 @@ class spectrograph:
 
         if plot_trend:
             _, ax = plt.subplots(
-                1, 3, constrained_layout=True, figsize=(10, 4)
+                1, 3, constrained_layout=True, figsize=(8, 4)
             )
 
             ax[0].plot(trend_x, trend_I)
