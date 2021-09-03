@@ -186,11 +186,6 @@ def load_fio(run, exp, datdir):
         a["data"] = data
         a["auto"] = head[0]
         a["pnts"] = pnts
-        if head[0] == "exp_dmy01":
-            a["EF"] = np.full(pnts, a["rixs_ener"])
-        else:
-            a["EF"] = a["data"][head[0]]
-        a["EI"] = a["dcm_ener"]
         a["th"] = a["rixs_th"]
         a["chi"] = a["rixs_chi"]
 

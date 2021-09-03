@@ -191,6 +191,13 @@ class irixs:
                     a = load_fio(n, self.exp, self.localdir)
             else:
                 a = load_fio(n, self.exp, self.datdir)
+            
+            # define EF - specific to rowland spectrometer
+            if a["auto"] == "exp_dmy01":
+                a["EF"] = np.full(a["pnts"], a["rixs_ener"])
+            else:
+                a["EF"] = a["data"]["rixs_ener"]
+
             self.runs[n] = a
 
         if not tiff:
@@ -655,7 +662,7 @@ class irixs:
             y = y[np.argsort(x)]
             x = np.sort(x)
             if self.E0 is None:
-                en = a["EI"]
+                en = a["dcm_ener"]  # EI incident energy
             else:
                 en = self.E0
             x -= en
