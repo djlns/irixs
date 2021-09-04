@@ -1,6 +1,7 @@
 """ reduction class for spectrograph """
 
 import os
+import sys
 import shutil
 import copy
 import numpy as np
@@ -67,8 +68,6 @@ class spectrograph:
             if self.runs[run_no] and self.runs[run_no]["complete"]:
                 continue
 
-            print(f"{run_no}", end="")
-
             fio_file = "{0}_{1:05d}.fio".format(self.exp, run_no)
             fio_remote = os.path.join(self.datdir, fio_file)
             fio_local = os.path.join(self.localdir, fio_file)
@@ -94,7 +93,7 @@ class spectrograph:
             filenames = [os.path.basename(f) for f in filepaths]
 
             img_list = []
-            for f in filenames:
+            for i, f in enumerate(filenames):
                 img = load_tiff(
                     f,
                     run_no,
@@ -105,15 +104,19 @@ class spectrograph:
                     detector="greateyes"
                 )
                 if img is None:
-                    print("!", end="")
                     break
                 img -= self.detfac
                 bounds = (img > self.threshold) & (img < self.cutoff)
                 img[~bounds] = 0
                 img_list.append(img)
-
-            print(f"/{len(img_list)}")
-            a["img"] = img_list            
+                sys.stdout.write(
+                    "\r#{0:<4} {1:<3}/{2:>3} ".format(run_no, i+1, a["pnts"])
+                )
+            if a["pnts"] != len(img_list):
+                print("!!!")
+            else:
+                print()
+            a["img"] = img_list    
             self.runs[run_no] = a
 
     def transform(self, run_nos, ysca=1, fit=True):
