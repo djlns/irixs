@@ -1,5 +1,9 @@
 import os
 import numpy as np
+import shutil
+
+from skimage import io
+from tifffile import TiffFileError
 from numpy import sin, cos, sqrt, log, radians, arccos, pi
 from scipy.optimize import curve_fit
 
@@ -211,6 +215,72 @@ def load_fio(run, exp, datdir):
         a["complete"] = complete
 
         return a
+
+
+def bias_correct_4output(rawimg):
+    """
+    correct bias of the Four DAC output mode of the greateyes detector ("EFGH")
+    divide matrix up into four quadrants and subtract median from each quadrant
+    """
+    r, h = rawimg.shape[1], rawimg.shape[0]
+    nrows,ncols = h//2, r//2
+    img = (rawimg
+           .reshape((h//nrows,nrows,-1,ncols))
+           .swapaxes(1,2)
+           .reshape((-1, nrows, ncols)))
+    for i,im in enumerate(img):
+        cen = int(np.median(im))
+        img[i] -= cen
+    img = np.block([[img[0], img[1]], [img[2], img[3]]])
+    return img
+
+
+def load_tiff(
+    tiff,
+    run,
+    exp,
+    datdir,
+    localdir,
+    bias_correct=False,
+    detector="andor",
+    ):
+    """
+    loads a tiff image and returns as a numpy array
+    - if localdir defined, looks to local directory first,
+      otherwise copies the remote file once loaded
+    - catches corrupted tiff files from previous copy operation cancellation
+    """
+
+    if detector == "andor":
+        tiff = "{0}_{1:05d}_{2:04d}.tiff".format(exp, run, tiff)
+
+    folder = "{0}_{1:05d}".format(exp, run)
+    path_remote = os.path.join(datdir, folder, detector, tiff)
+
+    if localdir:
+        path_local = os.path.join(localdir, folder, detector, tiff)
+        try:
+            img = io.imread(path_local)
+            # check if tiff file was corrupted on previous copy to local
+            if img.shape[0] == 0:
+                raise TiffFileError
+        except (OSError, TiffFileError):
+            try:
+                os.makedirs(os.path.dirname(path_local), exist_ok=True)
+                shutil.copyfile(path_remote, path_local)
+                img = io.imread(path_local)
+            except OSError:
+                return
+    else:
+        try:
+            img = io.imread(path_remote)
+        except OSError:
+            return
+
+    if bias_correct:
+        img = bias_correct_4output(img)
+
+    return img
 
 
 def flatten(*n):

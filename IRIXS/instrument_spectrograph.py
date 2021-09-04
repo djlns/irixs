@@ -7,63 +7,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from glob import glob
-from skimage import io
 from tabulate import tabulate
 from matplotlib.offsetbox import AnchoredText
-from tifffile import TiffFileError
 
-from .tools import load_fio, flatten, peak_fit, binning
-
-
-def bias_correct_4output(rawimg):
-    """
-    for EFGH output
-    divide matrix up into four quadrants and subtract median from each quadrant
-    """
-    r, h = rawimg.shape[1], rawimg.shape[0]
-    nrows,ncols = h//2, r//2
-    img = (rawimg
-           .reshape((h//nrows,nrows,-1,ncols))
-           .swapaxes(1,2)
-           .reshape((-1, nrows, ncols)))
-    for i,im in enumerate(img):
-        cen = int(np.median(im))
-        img[i] -= cen
-    img = np.block([[img[0], img[1]], [img[2], img[3]]])
-    return img
-
-
-def load_tiff(filename, run_no, exp, datdir, localdir, correct=True):
-    """ load greateyes detector tiff file
-    correct - correct for bias of 4 quadrants when using EFGH output
-    """
-
-    tiffpath = "{0}/{1}_{2:05d}/greateyes/{3}"
-    path_remote = tiffpath.format(datdir, exp, run_no, filename)
-    path_local = tiffpath.format(localdir, exp, run_no, filename)
-
-    if localdir:
-        try:
-            img = io.imread(path_local)
-        except (FileNotFoundError, OSError, TiffFileError):
-            try:
-                os.makedirs(os.path.dirname(path_local), exist_ok=True)
-                shutil.copyfile(path_remote, path_local)
-                img = io.imread(path_local)
-            except TiffFileError:  # raise OSErrors on copy
-                return
-    else:
-        try:
-            img = io.imread(path_remote)
-        except (FileNotFoundError, OSError, TiffFileError):
-            return
-
-    if img.shape[0] == 0:  # malformed tiff file
-        return
-    if correct:
-        img = bias_correct_4output(img)
-
-    return img
+from .tools import load_fio, load_tiff, flatten, peak_fit, binning
 
 
 class spectrograph:
@@ -154,7 +101,8 @@ class spectrograph:
                     self.exp,
                     self.datdir,
                     self.localdir,
-                    self.bias_correct
+                    self.bias_correct,
+                    detector="greateyes"
                 )
                 if img is None:
                     print("!", end="")

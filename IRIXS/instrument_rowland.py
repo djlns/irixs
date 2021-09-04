@@ -5,17 +5,16 @@ import sys
 import shutil
 import numpy as np
 import matplotlib.pyplot as plt
-import warnings
 import scipy.ndimage
 
 from numpy import pi, cos, tan, arcsin
-from matplotlib.pyplot import imread
 from matplotlib.patches import Rectangle
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from copy import deepcopy
 from glob import iglob
 
-from .tools import calc_dspacing, binning, peak_fit, load_fio, flatten
+from .tools import load_fio, load_tiff
+from .tools import calc_dspacing, binning, peak_fit, flatten
 
 PIX_EN_CONV = 13.5e-6  # andor detector pixel size
 SR_LIMIT = 50  # minimum ring current in mA to identify beam dump
@@ -34,37 +33,6 @@ def pix_to_E(energy, dspacing):
     l = 2 * cos(pi / 2 - th)
     dE = energy * PIX_EN_CONV / (l * tan(th))
     return dE
-
-
-def load_tiff(run, no, exp, datdir, localdir):
-    """
-    loads a tiff image and returns as a numpy array
-    - if localdir defined, looks to local directory first,
-      otherwise copies the remote file once loaded
-    - tries to catch corrupt files
-    """
-    tiff_file = '{0}_{1:05d}_{2:04d}.tiff'.format(exp, run, no)
-    tiff_path = os.path.join('{0}_{1:05d}'.format(exp, run), "andor", tiff_file)
-    path = os.path.join(datdir, tiff_path)
-
-    with warnings.catch_warnings():
-        if localdir:
-            path2 = os.path.join(localdir, tiff_path)
-            try:
-                img = imread(path2)
-            except (Warning, FileNotFoundError, OSError):
-                try:
-                    os.makedirs(os.path.dirname(path2), exist_ok=True)
-                    shutil.copyfile(path, path2)
-                    img = imread(path2)
-                except IOError:
-                    return
-        else:
-            try:
-                img = imread(path)
-            except (Warning, FileNotFoundError, OSError):
-                return
-    return img
 
 
 class irixs:
@@ -154,7 +122,7 @@ class irixs:
 
         self.corr_shift = False  # distortion correction
 
-    def load(self, run_nos, tiff=True):
+    def load(self, run_nos, load_images=True):
         """
         load data & parameters from fio and tiff files
         - stores runs as dicts in the self.runs dict
@@ -165,7 +133,7 @@ class irixs:
         - should be smart enough to only reload/recondition runs when necessary
 
         runs -- numbers of runs, can be given as single run or list or list of lists
-        tiff -- only load image data if True
+        load_images -- only load image data if True
         """
 
         if not isinstance(run_nos, (list, tuple, range)):
@@ -177,22 +145,29 @@ class irixs:
                 self.runs[n] = None
 
         for n in run_nos:
+
             if self.runs[n] and self.runs[n]["complete"]:
                 continue
-            path = "{0}/{1}_{2:05d}.fio".format(self.datdir, self.exp, n)
+
+            # extract metadata
+            fio_path = "{0}/{1}_{2:05d}.fio"
+            path_remote = fio_path.format(self.datdir, self.exp, n)
             if self.localdir:
-                path2 = "{0}/{1}_{2:05d}.fio".format(self.localdir, self.exp, n)
-                if not os.path.isfile(path2):
+                path_local = fio_path.format(self.localdir, self.exp, n)
+                if not os.path.isfile(path_local):
                     a = load_fio(n, self.exp, self.datdir)
                     if a and a["complete"]:
                         os.makedirs(self.localdir, exist_ok=True)
-                        shutil.copyfile(path, path2)
+                        shutil.copyfile(path_remote, path_local)
                 else:
                     a = load_fio(n, self.exp, self.localdir)
             else:
                 a = load_fio(n, self.exp, self.datdir)
-            
-            # define EF - specific to rowland spectrometer
+            if a is None:
+                continue
+
+            # define incoming and outgoing energies
+            a["EI"] = a["dcm_ener"]
             if a["auto"] == "exp_dmy01":
                 a["EF"] = np.full(a["pnts"], a["rixs_ener"])
             else:
@@ -200,7 +175,7 @@ class irixs:
 
             self.runs[n] = a
 
-        if not tiff:
+        if not load_images:
             return
 
         to = self.threshold - self.detfac
@@ -237,7 +212,7 @@ class irixs:
                 continue
 
             if "img" not in a or a["img"] is None:
-                imtest = load_tiff(n, 0, self.exp, self.datdir, self.localdir)
+                imtest = load_tiff(0, n, self.exp, self.datdir, self.localdir)
                 if imtest is None:
                     print("#{0:<4} -- no images".format(n))
                     a["img"] = None
@@ -247,7 +222,7 @@ class irixs:
 
             for i, _ in enumerate(a["EF"]):
                 if i > len(a["img"]) - 1:
-                    img = load_tiff(n, i, self.exp, self.datdir, self.localdir)
+                    img = load_tiff(i, n, self.exp, self.datdir, self.localdir)
                     if img is None:
                         print("!!!")
                         break
