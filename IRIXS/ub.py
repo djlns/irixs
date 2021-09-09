@@ -264,7 +264,12 @@ class sixc:
             return hkl[0]-h, hkl[1]-k, hkl[2]-l
 
         result = least_squares(fitfun, x0, args=(h, k, l))
-        return np.array([degrees(x) for x in result.x])
+        th_tth_chi = np.array(result.x)
+
+        if np.any(np.abs(th_tth_chi) > pi):
+            print("Warning: Calculated angles are out of limit")
+
+        return np.degrees(th_tth_chi)
 
     def find_hk_angles(self, hk_list, printout=True):
         """find th and chi angles for list of HK values (ignoring L) with detector at 90°"""
