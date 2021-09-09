@@ -202,7 +202,7 @@ class sixc:
             x-ray energy (eV)
         """
         self.energy = energy
-        self.wl = 12398 / energy  # eV -> Å
+        self.wl = energy_to_wavelength(energy)  # eV -> Å
         self.hkl1_offset = hkl1_offset
         self.update_B(*cell)        
         self.update_U(hkl0, hkl1, angles0, angles1)

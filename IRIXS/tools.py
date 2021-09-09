@@ -8,6 +8,11 @@ from numpy import sin, cos, sqrt, log, radians, arccos, pi
 from scipy.optimize import curve_fit
 
 
+def energy_to_wavelength(energy_in_eV):
+    wavelength_in_angstrom = 12398.425 / energy_in_eV
+    return wavelength_in_angstrom
+
+
 def unit_cell_volume(a1, a2, a3, alpha1, alpha2, alpha3):
     """calculate unit cell volume (angles in radians)"""
     V = (
