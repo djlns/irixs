@@ -202,6 +202,7 @@ class sixc:
         self.update_U(hkl0, hkl1, angles0, angles1, hkl1_offset)
 
     def update_energy(self, energy):
+        """ update incident spectrometer energy (eV) """
         self._wl = energy_to_wavelength(energy)
 
     def update_B(self, a, b, c, alpha, beta, gamma):
