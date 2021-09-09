@@ -141,22 +141,6 @@ def q_hkl(wl, UB, mu, nu, chi, eta=0, delta=0, phi=0):
 class sixc:
     """ Six-circle Diffractometer Simulator
 
-    Attributes
-    ----------
-    UB : (3x3) np.array
-        The UB-matrix maps scattering geometry in the laboratory frame (U) to
-        the reciprocol lattice of the sample (B)
-    orientation : list
-        Reflection values for U-matrix [hkl0, hkl1, angles0, angles1]
-    cell : list
-        Lattice parameters [a(Å), b(Å), c(Å), alpha(rad), beta(rad), gamma(rad)]
-    recip_cell : list
-        Reciprocol lattice [a*, b*, c*, alpha*, beta*, gamma*]
-    energy : float
-        X-ray energy (eV)
-    wl : float
-        X-ray wavelength (Å)
-
     Methods
     -------
     hkl(th, tth, chi) -> (h, k, l)
@@ -169,8 +153,20 @@ class sixc:
         Update lattice parameters and B-matrix. UB-matrix recalculated.
     update_U(hkl0, hkl1, angles0, angles1)
         Update U-Matrix using two alignment reflections. UB-matrix recalculated.
-    swap_alignment_refs()
-        Swap hkl0 and hkl1 and recalculate the UB-matrix.
+
+    Attributes
+    ----------
+    _UB : (3x3) np.array
+        The UB-matrix maps scattering geometry in the laboratory frame (U) to
+        the reciprocol lattice of the sample (B)
+    _orientation : list
+        Reflection values for U-matrix [hkl0, hkl1, angles0, angles1]
+    _cell : list
+        Lattice parameters [a(Å), b(Å), c(Å), alpha(rad), beta(rad), gamma(rad)]
+    _recip_cell : list
+        Reciprocol lattice [a*, b*, c*, alpha*, beta*, gamma*]
+    _wl : float
+        X-ray wavelength (Å)
     """
 
     def __init__(
@@ -208,75 +204,66 @@ class sixc:
         self.update_U(hkl0, hkl1, angles0, angles1)
 
     def update_B(self, a, b, c, alpha, beta, gamma):
-        """ calculate B matrix from crystal lattice parameters """
+        """ update B matrix with new crystal lattice cell (Å) and angles (°) """
 
         a1, a2, a3 = a, b, c
         alpha1, alpha2, alpha3 = radians(alpha), radians(beta), radians(gamma)
-        self.cell = [a1, a2, a3, alpha1, alpha2, alpha3]
+        self._cell = [a1, a2, a3, alpha1, alpha2, alpha3]
 
-        b1, b2, b3, beta1, beta2, beta3 = reciprocol_lattice(*self.cell)
-        self.recip_cell = [b1, b2, b3, beta1, beta2, beta3]
+        b1, b2, b3, beta1, beta2, beta3 = reciprocol_lattice(*self._cell)
+        self._recip_cell = [b1, b2, b3, beta1, beta2, beta3]
 
-        self.B = B_matrix(b1, b2, b3, beta2, beta3, a3, alpha1)
+        self._B = B_matrix(b1, b2, b3, beta2, beta3, a3, alpha1)
         self._update_UB()
 
-    def update_U(self, hkl0, hkl1, angles0, angles1):
-        """ calculate the U Matrix using reflections hkl0 and hkl1 """
+    def update_U(self, hkl0, hkl1, angles0, angles1=None, hkl1_offset=None):
+        """ update U Matrix with new reflections hkl0 and hkl1 """
+
+        # save hkl1_offset if provided
+        if hkl1_offset:
+            self._hkl1_offset = hkl1_offset
 
         # [th, tth, chi] degrees -> [mu, nu, chi] radians
         if angles1 is None:
             angles1 = deepcopy(angles0)
-            angles1[0] += self.hkl1_offset
+            angles1[0] += self._hkl1_offset
         angles0 = [radians(ang) for ang in angles0]
         angles1 = [radians(ang) for ang in angles1]
-        self.orientation = [hkl0, hkl1, angles0, angles1]
+        self._orientation = [hkl0, hkl1, angles0, angles1]
 
         # HKL orientation vectors
         h1 = np.atleast_2d(np.array(hkl0)).T
         h2 = np.atleast_2d(np.array(hkl1)).T
-        self._h1c = self.B.dot(h1)
-        self._h2c = self.B.dot(h2)
+        self._h1c = self._B.dot(h1)
+        self._h2c = self._B.dot(h2)
 
         # Reflection vectors in phi frame
         self._u1p = q_phi(*angles0)
         self._u2p = q_phi(*angles1)
 
-        self.U = U_matrix(self._h1c, self._h2c, self._u1p, self._u2p)
-        self._update_UB()
-
-    def swap_alignment_refs(self):
-        """ Swap hkl0 and hkl1 and recalculate the UB-matrix. """
-        self._u1p, self._u2p = self._u2p, self._u1p
-        self._h1c, self._h2c = self._h2c, self._h1c
-        self.orientation = [
-            self.orientation[1],
-            self.orientation[0],
-            self.orientation[3],
-            self.orientation[2]
-        ]
-        self.U = U_matrix(self._h1c, self._h2c, self._u1p, self._u2p)
+        self._U = U_matrix(self._h1c, self._h2c, self._u1p, self._u2p)
         self._update_UB()
 
     def _update_UB(self):
         """ find the UB-matrix """
         try:
-            self.UB = self.U.dot(self.B)
+            self._UB = self._U.dot(self._B)
         except AttributeError:
             pass
 
     def hkl(self, th, tth, chi):
         """ return miller indices (h, k, l) for given angles """
-        hkl = q_hkl(self.wl, self.UB, radians(th), radians(tth), radians(chi))
+        hkl = q_hkl(self._wl, self._UB, radians(th), radians(tth), radians(chi))
         return hkl
 
     def angles(self, h, k, l):
         """ return angles (th, tth, chi) for given reflection (h, k, l) """
         
         # init with th=45, tth=90, chi=chi0
-        x0 = [pi/4, pi/2, self.orientation[2][2]]
+        x0 = [pi/4, pi/2, self._orientation[2][2]]
 
         def fitfun(angles, h, k, l):
-            hkl = q_hkl(self.wl, self.UB, angles[0], angles[1], angles[2])
+            hkl = q_hkl(self._wl, self._UB, angles[0], angles[1], angles[2])
             return hkl[0]-h, hkl[1]-k, hkl[2]-l
 
         result = least_squares(fitfun, x0, args=(h, k, l))
@@ -294,10 +281,10 @@ class sixc:
         """
 
         def fitfun(angles, h, k):
-            hkl = q_hkl(self.wl, self.UB, angles[0], pi/2, angles[1])
+            hkl = q_hkl(self._wl, self._UB, angles[0], pi/2, angles[1])
             return hkl[0]-h, hkl[1]-k
 
-        x0 = [pi/4, self.orientation[2][2]]  # init with th=45, chi=chi0
+        x0 = [pi/4, self._orientation[2][2]]  # init with th=45, chi=chi0
 
         angle_list = []
         for hk in hk_list:
@@ -305,7 +292,7 @@ class sixc:
             angles = [degrees(x) for x in result.x]
             angle_list.append(angles)
             if printout:
-                hkl = q_hkl(self.wl, self.UB, result.x[0], pi/2, result.x[1])
+                hkl = q_hkl(self._wl, self._UB, result.x[0], pi/2, result.x[1])
                 print(f"th{angles[0]: 9.4f}  chi{angles[1]: 9.4f}", end="  ")
                 print(f"({hkl[0]: 6.3f} {hkl[1]: 6.3f} {hkl[2]: 6.3f})")
 
