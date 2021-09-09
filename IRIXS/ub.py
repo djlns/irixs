@@ -197,11 +197,12 @@ class sixc:
         energy : float
             x-ray energy (eV)
         """
-        self.energy = energy
-        self.wl = energy_to_wavelength(energy)  # eV -> Å
-        self.hkl1_offset = hkl1_offset
+        self.update_energy(energy)
         self.update_B(*cell)        
-        self.update_U(hkl0, hkl1, angles0, angles1)
+        self.update_U(hkl0, hkl1, angles0, angles1, hkl1_offset)
+
+    def update_energy(self, energy):
+        self._wl = energy_to_wavelength(energy)
 
     def update_B(self, a, b, c, alpha, beta, gamma):
         """ update B matrix with new crystal lattice cell (Å) and angles (°) """
