@@ -44,12 +44,15 @@ Example reduction script for `IRIXS.irixs`
 ```python
 from IRIXS import irixs
 
-# initiate class and define detector ROI and zero energy transfer position
+# initiate class and define detector ROI and zero energy position (y0)
 expname = "irixs_11009137"
 a = irixs(expname, y0=667, roix=[160, 1500], roih=[-200, 200])
 
 elastic_runs = [1713, 1719]
 spectra_runs = [1710, 1711, 1712, 1722, 1723]
+
+# plot raw detector data to refine the ROI and y0
+a.detector(1713)
 
 # load and condition data by binning with meV steps
 a.condition(0.006, elastic_runs, fit=True)
@@ -73,7 +76,7 @@ runs = [2476, 2477]
 # plot raw detector images to refine ROI
 b.detector(2476)
 
-# condition and plot by summing over defined axis
+# condition and plot, while summing over the vertical (y) axis of the detector
 b.condition(runs, bins=20, oneshot_y=True)
 b.plot(runs)
 ```
@@ -85,6 +88,7 @@ Example script for `IRIXS.sixc`
 from IRIXS import sixc
 
 # initialise UB-matrix using experimental conditions
+# here we assume second reflection is offset by exactly th=90°
 unit_cell = [5.37, 5.60, 19.35, 90, 90, 90]
 hkl0 = (0, 0, 4)
 hkl1 = (1, 0, 0)
@@ -94,9 +98,9 @@ chi0 = 2.0
 angles0 = [th0, tth0, chi0]
 f = sixc(unit_cell, ref0, ref1, angles0, hkl1_offset=90, energy=2838.5)
 
-# print hkl for values from grazing to normal with detector fixed at tth=90
+# print hkl for values from grazing to normal with detector fixed at tth=90°
 for th in range(0, 95, 5):
-    print(th, f.hkl(th).round(3)
+    print(th, f.hkl(th, 90, chi0).round(3))
 ```
 
 ### p01plot
