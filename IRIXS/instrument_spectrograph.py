@@ -267,7 +267,7 @@ class spectrograph:
                 pad=0.1, 
                 prop=dict(fontsize="small")
             ))
-            ax3.add_artist(t2 = AnchoredText(
+            ax3.add_artist(AnchoredText(
                 a["txty"],
                 loc=2,
                 frameon=False,
