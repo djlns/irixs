@@ -260,8 +260,20 @@ class spectrograph:
         if a["fitted"]:
             ax2.plot(a["yfx"], a["xfx"], color="k",lw=0.5)
             ax3.plot(a["xfy"], a["yfy"], color="k",lw=0.5)
-            ax2.add_artist(AnchoredText(a["txtx"], loc=1, frameon=False, pad=1))
-            ax3.add_artist(AnchoredText(a["txty"], loc=2, frameon=False, pad=1))
+            ax2.add_artist(AnchoredText(
+                a["txtx"], 
+                loc=1, 
+                frameon=False, 
+                pad=0.1, 
+                prop=dict(fontsize="small")
+            ))
+            ax3.add_artist(t2 = AnchoredText(
+                a["txty"],
+                loc=2,
+                frameon=False,
+                pad=0.1,
+                prop=dict(fontsize="small")
+            ))
 
         r1, r2, r3, r4 = a["extent"]
         ax2.set_ylim(r3, r4)
