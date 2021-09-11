@@ -153,6 +153,8 @@ class sixc:
         Update lattice parameters and B-matrix. UB-matrix recalculated.
     update_U(hkl0, hkl1, angles0, angles1)
         Update U-Matrix using two alignment reflections. UB-matrix recalculated.
+    update_energy(energy)
+        Update spectrometer energy (eV) for angle & hkl calcuations
 
     Attributes
     ----------
