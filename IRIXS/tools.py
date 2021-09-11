@@ -256,7 +256,8 @@ def load_tiff(
     - catches corrupted tiff files from previous copy operation cancellation
     """
 
-    if detector == "andor":
+    # generate tiff filename from step number if given
+    if isinstance(tiff, int):
         tiff = "{0}_{1:05d}_{2:04d}.tiff".format(exp, run, tiff)
 
     folder = "{0}_{1:05d}".format(exp, run)

@@ -29,10 +29,14 @@ class spectrograph:
         vmax_average=100,
         vmax_single=100,
         vmin=1,
+        detector_type="greateyes",
         datdir_remote="/gpfs/current/raw",
         datdir_local="raw",
         savedir="processed",
     ):
+
+        if detector_type != "greateyes":
+            bias_correct=False
 
         self.exp = exp
         self.detfac = detfac
@@ -45,6 +49,7 @@ class spectrograph:
         self.vmax_average = vmax_average
         self.vmax_single = vmax_single
         self.vmin = vmin
+        self.detector_type = detector_type
         self.datdir = datdir_remote
         self.localdir = datdir_local
         self.savedir = savedir
@@ -85,7 +90,7 @@ class spectrograph:
             else:
                 img_root = self.localdir
             img_folder = f"{self.exp}_{run_no:05d}"
-            img_folder = os.path.join(img_root, img_folder, "greateyes")
+            img_folder = os.path.join(img_root, img_folder, self.detector_type)
 
             # find image files and sort by collection time
             filepaths = glob(os.path.join(img_folder, "*.tiff"))
@@ -101,7 +106,7 @@ class spectrograph:
                     self.datdir,
                     self.localdir,
                     self.bias_correct,
-                    detector="greateyes"
+                    self.detector_type,
                 )
                 if img is None:
                     break
