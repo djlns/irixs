@@ -22,9 +22,9 @@ class spectrograph:
         detfac=0,
         threshold=15,
         cutoff=2000,
-        roix=[0,2048],
-        roih=2064,
-        roic=2064//2,
+        roix=None,
+        roih=None,
+        roic=None,
         bias_correct=True,
         vmax_average=100,
         vmax_single=100,
@@ -35,8 +35,16 @@ class spectrograph:
         savedir="processed",
     ):
 
-        if detector_type != "greateyes":
-            bias_correct=False
+        # if ROI is not given, use detector limits
+        if roix is None:
+            roix = [0, 2048]
+        if roih is None:
+            if detector_type == "greateyes":
+                roih = 2064
+            if detector_type == "andor":
+                roih = 2048
+        if roic is None:
+            roic = roih // 2
 
         self.exp = exp
         self.detfac = detfac
@@ -117,11 +125,14 @@ class spectrograph:
                 sys.stdout.write(
                     "\r#{0:<4} {1:<3}/{2:>3} ".format(run_no, i+1, a["pnts"])
                 )
+            if not img_list:
+                print(f"#{run_no:<4} -- no images loaded")
+                continue
             if a["pnts"] != len(img_list):
                 print("!!!")
             else:
                 print()
-            a["img"] = img_list    
+            a["img"] = img_list
             self.runs[run_no] = a
 
     def transform(self, run_nos, ysca=1, fit=True):
