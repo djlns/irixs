@@ -318,9 +318,6 @@ if __name__ == "__main__":
         print(th, f.hkl(th, 90, 2.0).round(3))
     print()
 
-    # swap hkl0 and hkl1
-    f.swap_alignment_refs()
-
     # find angles for given hkl
     hkl = (1, 0.2, 6)
     angles = f.angles(*hkl)
