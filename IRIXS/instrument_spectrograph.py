@@ -621,7 +621,7 @@ class spectrograph:
         self,
         nstart=None,
         nend=None,
-        date=True,
+        date=False,
     ):
         """
         tabulate runs
@@ -638,7 +638,8 @@ class spectrograph:
             if nend is None:
                 try:
                     latest = max(
-                        iglob(os.path.join(self.datdir, "*.fio")), key=os.path.getctime
+                        iglob(os.path.join(self.datdir, "*.fio")),
+                        key=os.path.getctime
                     )
                 except ValueError:
                     print("Using Local Directory")
@@ -658,7 +659,8 @@ class spectrograph:
             a = load_fio(run_no, self.exp, self.datdir)
             if a is None:
                 continue
-            out = "#{0:<4}{1} ".format(run_no, a["command"])
+            cmd_txt = " ".join(a["command"])
+            out = "#{0:<4}{1}  ".format(run_no, cmd_text)
             if date:
                 out += a["date"]
             print(out)
