@@ -660,7 +660,7 @@ class spectrograph:
             if a is None:
                 continue
             cmd_txt = " ".join(a["command"])
-            out = "#{0:<4}{1}  ".format(run_no, cmd_text)
+            out = "#{0:<4}{1}  ".format(run_no, cmd_txt)
             if date:
                 out += a["date"]
             print(out)
