@@ -242,14 +242,14 @@ class sixc:
         # HKL orientation vectors
         h1 = np.atleast_2d(np.array(hkl0)).T
         h2 = np.atleast_2d(np.array(hkl1)).T
-        self._h1c = self._B.dot(h1)
-        self._h2c = self._B.dot(h2)
+        h1c = self._B.dot(h1)
+        h2c = self._B.dot(h2)
 
         # Reflection vectors in phi frame
-        self._u1p = q_phi(*angles0)
-        self._u2p = q_phi(*angles1)
+        u1p = q_phi(*angles0)
+        u2p = q_phi(*angles1)
 
-        self._U = U_matrix(self._h1c, self._h2c, self._u1p, self._u2p)
+        self._U = U_matrix(h1c, h2c, u1p, u2p)
         self._update_UB()
 
     def _update_UB(self):
