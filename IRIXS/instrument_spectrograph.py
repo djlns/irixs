@@ -616,3 +616,52 @@ class spectrograph:
         print()
 
         return results
+
+    def logbook(
+        self,
+        nstart=None,
+        nend=None,
+        date=True,
+    ):
+        """
+        tabulate runs
+        - shows if ring current was too low (SR_LIMIT)
+        - shows if rixs_ener is different to dcm_ener
+
+        nstart,nend -- range of runs
+        runs -- specific runs
+        extras,hkl,date -- extra parameters to display
+        only_rixs -- only tabulate rixs runs
+        """
+        if not nstart and not run_nos:
+            run_nos = list(self.runs.keys())
+
+        if nstart:
+            if nend is None:
+                try:
+                    latest = max(
+                        iglob(os.path.join(self.datdir, "*.fio")), key=os.path.getctime
+                    )
+                except ValueError:
+                    print("Using Local Directory")
+                    latest = max(
+                        iglob(os.path.join(self.localdir, "*.fio")),
+                        key=os.path.getctime,
+                    )
+                try:
+                    latest = latest[:-4].split("_")[-1]
+                    run_nos = range(nstart, int(latest) + 1)
+                except ValueError:
+                    return
+            else:
+                run_nos = range(nstart, nend + 1)
+
+        for run_no in run_nos:
+            a = load_fio(run_no, self.exp, self.datdir)
+            if a is None:
+                continue
+            out = "#{0:<4}{1} ".format(run_no, a["command"])
+            if date:
+                out += a["date"]
+            print(out)
+        print()
