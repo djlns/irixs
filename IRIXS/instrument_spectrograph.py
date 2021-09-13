@@ -68,7 +68,13 @@ class spectrograph:
         self.runs = {}
 
     def extract(self, run_nos):
+        """ Extract run data and information
+        Imports detector tiff images and run information from fio files.
+        Applies the threshold and cutoff.
 
+        -- run_nos : single run number or list of run numbers
+        """
+        
         if not isinstance(run_nos, (list, tuple, range)):
             run_nos = [run_nos]
         run_nos = flatten(run_nos)
@@ -136,6 +142,14 @@ class spectrograph:
             self.runs[run_no] = a
 
     def transform(self, run_nos, ysca=1, fit=True):
+        """ Transforms detector images into an array
+        Applies defined ROI and stores summed intensity
+        Stores the summed intensity along detector X (horiz) and Y (vert) axes
+
+        -- run_nos : single run number or list of run numbers
+        -- ysca : intensity scaling factor
+        -- fit : if True, attempt to fit summed X and Y intensities
+        """
 
         self.extract(run_nos)
         if not isinstance(run_nos, (list, tuple, range)):
@@ -218,6 +232,9 @@ class spectrograph:
                 a["xfy"], a["yfy"], a["py"], a["txty"] = xfy, yfy, py, txty
 
     def detector(self, run_no):
+        """ plot raw features of the detector signal
+        interactively step through individual images
+        """
 
         self.extract(run_no)
 
@@ -371,6 +388,18 @@ class spectrograph:
         xsca=1,
         x0=0
     ):
+        """ Load, bin and save experiment run data to file.
+        By default loads ROI intensity as a function of scanning motor
+
+        -- run_nos : single run number or list of run numbers
+        -- bins : bin size to rebin data
+        -- oneshot_x : if True, load intensity summed along detector X axis
+        -- oneshot_y : if True, load intensity summed along detector Y axis
+        -- oneshot_no : Select single point/image in scan for oneshot summation
+        -- fit : if True, attempt to fit a pseudo-voight profile to data
+        -- xsca : x-axis scaling factor
+        -- x0 : x-xaxis offset value  / x = (x - x0) * xsca
+        """
 
         if not isinstance(run_nos, (list, tuple, range)):
             run_nos = [run_nos]
@@ -442,13 +471,14 @@ class spectrograph:
         self,
         run_nos,
         ax=None,
-        motor=None,
         norm=False,
         fit=False,
         ystep=0,
         plot_trend=False,
+        label_motor=None,
         **kwargs
     ):
+        """ plot conditioned data """
 
         if not isinstance(run_nos, (list, tuple, range)):
             run_nos = [run_nos]
@@ -483,8 +513,8 @@ class spectrograph:
                 y = y/np.max(y)
 
             lab = f"#{run_no}"
-            if motor:
-                lab += f" {motor}: {a[motor]:.2f}"
+            if label_motor:
+                lab += f" {label_motor}: {a[label_motor]:.2f}"
 
             if fit and xf:
                 trend_x.append(run_no)
@@ -523,21 +553,22 @@ class spectrograph:
         run_no,
         fit=True,
         maxsig=1200,
-        vert=False,
+        detector_axis="x",
         title="no",
         plot=True,
         plot_trend=False,
         ystep=0
     ):
+        """ Fit detector signal and follow as function of scanning motor """
 
         a = self.runs[run_no]
 
         rx, ry, imgx, imgy = a["rx"], a["ry"], a["imgx"], a["imgy"]
 
-        if vert:
+        if detector_axis == "x":  # horizontal
             r = rx
             im = imgx
-        else:
+        elif detector_axis == "y":  # vertical
             r = ry
             im = imgy
 
@@ -624,14 +655,9 @@ class spectrograph:
         date=False,
     ):
         """
-        tabulate runs
-        - shows if ring current was too low (SR_LIMIT)
-        - shows if rixs_ener is different to dcm_ener
-
-        nstart,nend -- range of runs
-        runs -- specific runs
-        extras,hkl,date -- extra parameters to display
-        only_rixs -- only tabulate rixs runs
+        display list of experiment runs
+        -- nstart, nend : range of run numbers
+        -- date : show date and time of run
         """
 
         if nstart:
@@ -641,7 +667,7 @@ class spectrograph:
                         iglob(os.path.join(self.datdir, "*.fio")),
                         key=os.path.getctime
                     )
-                except ValueError:
+                except ValueError:  # remote directory not present
                     print("Using Local Directory")
                     latest = max(
                         iglob(os.path.join(self.localdir, "*.fio")),
