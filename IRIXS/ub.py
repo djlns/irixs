@@ -39,8 +39,9 @@ from copy import deepcopy
 
 from .tools import reciprocol_lattice, energy_to_wavelength
 
-# catch failed UB-matrix due to parallel reflections
-np.seterr(invalid="raise")
+
+class ParallelReflectionError(Exception):
+    pass
 
 
 def rot_matricies(mu, nu, chi, eta=0, delta=0, phi=0):
@@ -105,11 +106,14 @@ def U_matrix(h1c, h2c, u1p, u2p):
     t3p = np.cross(u1p.ravel(), u2p.ravel()).reshape(3, 1)
     t2p = np.cross(t3p.ravel(), t1p.ravel()).reshape(3, 1)
 
-    try:
-        Tc = np.hstack([t1c/norm(t1c), t2c/norm(t2c), t3c/norm(t3c)])
-        Tp = np.hstack([t1p/norm(t1p), t2p/norm(t2p), t3p/norm(t3p)])
-    except FloatingPointError:
-        raise BaseException("Reflections are parallel.")
+    Tc = np.hstack([t1c/norm(t1c), t2c/norm(t2c), t3c/norm(t3c)])
+    Tp = np.hstack([t1p/norm(t1p), t2p/norm(t2p), t3p/norm(t3p)])
+    
+    # catch failed UB-matrix due to parallel reflections
+    if np.any(~np.isfinite(Tc)):
+        raise ParallelReflectionError("hkl0 and hkl1 are parallel")
+    if np.any(~np.isfinite(Tp)):
+        raise ParallelReflectionError("alignment angles are identical")
 
     return Tp.dot(inv(Tc))
 
