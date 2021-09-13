@@ -228,7 +228,7 @@ class sixc:
         """ update U Matrix with new reflections hkl0 and hkl1 """
 
         # save hkl1_offset if provided
-        if hkl1_offset:
+        if hkl1_offset is not None:
             self._hkl1_offset = hkl1_offset
 
         # [th, tth, chi] degrees -> [mu, nu, chi] radians
