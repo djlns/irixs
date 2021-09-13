@@ -7,7 +7,7 @@ import copy
 import numpy as np
 import matplotlib.pyplot as plt
 
-from glob import glob
+from glob import glob, iglob
 from tabulate import tabulate
 from matplotlib.offsetbox import AnchoredText
 
@@ -633,8 +633,6 @@ class spectrograph:
         extras,hkl,date -- extra parameters to display
         only_rixs -- only tabulate rixs runs
         """
-        if not nstart and not run_nos:
-            run_nos = list(self.runs.keys())
 
         if nstart:
             if nend is None:
