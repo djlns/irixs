@@ -158,11 +158,11 @@ class sixc:
     update_U(hkl0, hkl1, angles0, angles1)
         Update U-Matrix using two alignment reflections. UB-matrix recalculated.
     update_energy(energy)
-        Update spectrometer energy (eV) for angle & hkl calcuations
+        Update spectrometer energy (eV) for angle & hkl calcualtions
 
     Attributes
     ----------
-    _UB : (3x3) np.array
+    _UB, _U, _B : (3x3) np.arrays
         The UB-matrix maps scattering geometry in the laboratory frame (U) to
         the reciprocol lattice of the sample (B)
     _orientation : list
@@ -172,7 +172,7 @@ class sixc:
     _recip_cell : list
         Reciprocol lattice [a*, b*, c*, alpha*, beta*, gamma*]
     _wl : float
-        X-ray wavelength (Å)
+        X-ray wavelength (Å), calculated from incident spectrometer energy
     """
 
     def __init__(
@@ -201,7 +201,7 @@ class sixc:
         hkl1_offset : float
             if angles1 is None, assume hkl1 is hkl1_offset° away from hkl0
         energy : float
-            x-ray energy (eV)
+            incident spectrometer x-ray energy (eV)
         """
         self.update_energy(energy)
         self.update_B(*cell)        
@@ -266,7 +266,7 @@ class sixc:
 
     def angles(self, h, k, l):
         """ return angles (th, tth, chi) for given reflection (h, k, l) """
-        
+
         # init with th=45, tth=90, chi=chi0
         x0 = [pi/4, pi/2, self._orientation[2][2]]
 
