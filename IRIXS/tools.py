@@ -2,7 +2,7 @@ import os
 import numpy as np
 import shutil
 
-from skimage import io
+from skimage.io import imread
 from tifffile import TiffFileError
 from numpy import sin, cos, sqrt, log, radians, arccos, pi
 from scipy.optimize import curve_fit
@@ -266,7 +266,7 @@ def load_tiff(
     if localdir:
         path_local = os.path.join(localdir, folder, detector, tiff)
         try:
-            img = io.imread(path_local)
+            img = imread(path_local)
             # check if tiff file was corrupted on previous copy to local
             if img.shape[0] == 0:
                 raise TiffFileError
@@ -274,12 +274,12 @@ def load_tiff(
             try:
                 os.makedirs(os.path.dirname(path_local), exist_ok=True)
                 shutil.copyfile(path_remote, path_local)
-                img = io.imread(path_local)
+                img = imread(path_local)
             except OSError:
                 return
     else:
         try:
-            img = io.imread(path_remote)
+            img = imread(path_remote)
         except OSError:
             return
 
