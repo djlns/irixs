@@ -554,6 +554,7 @@ class spectrograph:
         fit=True,
         maxsig=1200,
         detector_axis="x",
+        bins=None,
         title="no",
         plot=True,
         plot_trend=False,
@@ -582,6 +583,9 @@ class spectrograph:
 
         trend_x0, trend_I, trend_fw = [], [], []
         for i, (x, y, xpos) in enumerate(zip(r, im, a["x"])):
+
+            if bins:
+                x, y, _ = binning(x, y, bins)
 
             if plot:
                 l, = ax.plot(x, y+i*ystep, lw=0.75)
