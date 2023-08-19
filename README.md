@@ -1,6 +1,7 @@
 # IRIXS routines
 
-Scripts for the IRIXS spectrometer, Beamline P01, Synchrotron Petra-III, DESY
+Scripts for the IRIXS spectrometer, Beamline P01, Synchrotron Petra-III, DESY.
+Typical install time on a normal desktop computer and expected run time for demo on a normal desktop computer is on the order of few minutes.
 
 - [IRIXS: a resonant inelastic X-ray scattering instrument dedicated to X-rays in the intermediate energy range](https://doi.org/10.1107/S1600577519017119)  
 - [IRIXS Spectrograph: an ultra high-resolution spectrometer for tender RIXS](https://doi.org/10.1107/S1600577521003805)
